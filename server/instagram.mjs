@@ -30,6 +30,8 @@ export async function publishToInstagram(post, publicUrl) {
     ? { media_type: 'REELS', video_url: publicUrl, caption: post.caption, share_to_feed: 'true' }
     : { image_url: publicUrl, caption: post.caption }
   const container = await instagramRequest(`${accountId}/media`, { method: 'POST', parameters })
-  if (post.format === 'reel') await waitForContainer(container.id)
+  // Images can also remain IN_PROGRESS briefly after Meta accepts their URL.
+  // Publishing before FINISHED produces the misleading "Media ID is not available" error.
+  await waitForContainer(container.id)
   return instagramRequest(`${accountId}/media_publish`, { method: 'POST', parameters: { creation_id: container.id } })
 }
