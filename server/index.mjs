@@ -11,7 +11,9 @@ import { fileURLToPath } from 'node:url'
 import { loadDatabase, saveDatabase } from './database.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-const mediaDir = path.join(root, 'generated')
+const mediaDir = process.env.VERCEL
+  ? '/tmp/generated'
+  : path.join(root, 'generated')
 const quotesFile = path.join(root, 'content', 'quotes.json')
 const port = Number(process.env.API_PORT || 5174)
 const app = express()
@@ -1048,27 +1050,31 @@ if (process.env.RUN_ONCE === 'true') {
   process.exit(0)
 }
 
-cron.schedule(
-  '* * * * *',
-  checkSchedule,
-  {
-    timezone: 'Europe/Chisinau',
-  },
-)
+if (!process.env.VERCEL) {
+  cron.schedule(
+    '* * * * *',
+    checkSchedule,
+    {
+      timezone: 'Europe/Chisinau',
+    },
+  )
 
-cron.schedule(
-  '5 * * * *',
-  fillQueue,
-  {
-    timezone: 'Europe/Chisinau',
-  },
-)
+  cron.schedule(
+    '5 * * * *',
+    fillQueue,
+    {
+      timezone: 'Europe/Chisinau',
+    },
+  )
 
-app.listen(
-  port,
-  '127.0.0.1',
-  () =>
-    console.log(
-      `Silent Forward API: http://127.0.0.1:${port}`,
-    ),
-)
+  app.listen(
+    port,
+    '127.0.0.1',
+    () =>
+      console.log(
+        `Silent Forward API: http://127.0.0.1:${port}`,
+      ),
+  )
+}
+
+export default app
