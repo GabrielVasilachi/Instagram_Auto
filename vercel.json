@@ -2,10 +2,7 @@
   "functions": {
     "api/index.mjs": {
       "maxDuration": 300,
-      "includeFiles": [
-        "assets/fonts/**",
-        "content/quotes.json"
-      ]
+      "includeFiles": "{assets/fonts/**,content/quotes.json}"
     }
   },
   "rewrites": [
