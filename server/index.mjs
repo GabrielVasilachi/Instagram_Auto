@@ -1018,6 +1018,36 @@ app.get(
 await ensureStorage()
 await fillQueue()
 
+if (process.env.RUN_ONCE === 'true') {
+  const database = await loadDatabase()
+
+  if (database.settings.autopilot) {
+    const due = database.posts.find(
+      (post) =>
+        post.status === 'scheduled' &&
+        new Date(post.scheduledFor) <= new Date(),
+    )
+
+    if (due) {
+      console.log(
+        `[publisher] Publicăm ${due.format}: ${due.id}`,
+      )
+
+      await publishPost(due.id)
+
+      console.log(
+        `[publisher] Publicare finalizată: ${due.id}`,
+      )
+    } else {
+      console.log(
+        '[publisher] Nu există postări scadente.',
+      )
+    }
+  }
+
+  process.exit(0)
+}
+
 cron.schedule(
   '* * * * *',
   checkSchedule,
