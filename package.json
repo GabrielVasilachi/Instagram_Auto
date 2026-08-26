@@ -8,6 +8,8 @@
     "dev:web": "vite --configLoader runner --host 127.0.0.1 --port 5173",
     "dev:api": "node server/index.mjs",
     "build": "tsc -b && vite build --configLoader runner",
+    "test": "node --test test/*.test.mjs",
+    "test:media": "node --test test/media.test.mjs",
     "preview": "vite preview --host 127.0.0.1 --port 5173",
     "start": "node server/index.mjs"
   },
