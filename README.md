@@ -20,7 +20,16 @@ npm install
 npm run dev
 ```
 
-The local API keeps its own minute scheduler for development. Production scheduling is owned exclusively by Supabase Cron.
+Open `http://127.0.0.1:5173` and sign in with the `ADMIN_PASSWORD` value from `.env`.
+The local API accepts the Vite development origin even though the UI and API use different
+ports. Restart `npm run dev` after changing the password.
+
+Production scheduling is owned exclusively by Supabase Cron. The local worker is disabled by
+default so opening the dashboard cannot duplicate remote publishing. Only set
+`ENABLE_LOCAL_WORKER=true` when intentionally testing the complete worker locally.
+
+The default editorial cadence is three Reels per day (`09:00`, `15:30`, `21:00`) and two static
+posts per week (Tuesday and Saturday at `11:00`) in the configured timezone.
 
 ## Checks
 

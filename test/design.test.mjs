@@ -14,3 +14,11 @@ test('design values are constrained to supported remote rendering options', () =
   assert.equal(design.duration, 6)
   assert.equal(design.musicVolume, 0)
 })
+
+test('advanced typography and overlay values are constrained', () => {
+  const design = normalizeDesign({ textCase: 'uppercase', letterSpacing: 99, lineHeight: 10, overlayOpacity: 90 }, 'reel')
+  assert.equal(design.textCase, 'uppercase')
+  assert.equal(design.letterSpacing, 12)
+  assert.equal(design.lineHeight, 90)
+  assert.equal(design.overlayOpacity, 65)
+})

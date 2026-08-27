@@ -59,6 +59,12 @@ function themeSvg(template, width, height) {
       <filter id="noise"><feTurbulence baseFrequency=".8" numOctaves="3" stitchTiles="stitch"/><feColorMatrix values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 .045 0"/></filter>
       <rect width="100%" height="100%" fill="url(#base)"/><rect width="100%" height="100%" filter="url(#noise)" opacity=".45"/>
     `,
+    forest: `<linearGradient id="base" x1="0" y1="1" x2="1" y2="0"><stop stop-color="#03100c"/><stop offset=".55" stop-color="#0b241a"/><stop offset="1" stop-color="#142b22"/></linearGradient><radialGradient id="glow"><stop stop-color="#79d99a" stop-opacity=".22"/><stop offset="1" stop-color="#79d99a" stop-opacity="0"/></radialGradient><rect width="100%" height="100%" fill="url(#base)"/><circle cx="${width * .22}" cy="${height * .18}" r="520" fill="url(#glow)"/>`,
+    dusk: `<linearGradient id="base" x1="0" y1="1" x2="1" y2="0"><stop stop-color="#130b1e"/><stop offset=".55" stop-color="#2a173a"/><stop offset="1" stop-color="#5a283f"/></linearGradient><radialGradient id="glow"><stop stop-color="#ff9d70" stop-opacity=".25"/><stop offset="1" stop-color="#ff9d70" stop-opacity="0"/></radialGradient><rect width="100%" height="100%" fill="url(#base)"/><ellipse cx="${width * .78}" cy="${height * .22}" rx="500" ry="360" fill="url(#glow)"/>`,
+    sandstone: `<linearGradient id="base" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#2b1d15"/><stop offset=".5" stop-color="#6c4934"/><stop offset="1" stop-color="#1a1210"/></linearGradient><rect width="100%" height="100%" fill="url(#base)"/><path d="M-80 ${height * .72} Q ${width * .3} ${height * .56}, ${width + 80} ${height * .72}" fill="none" stroke="#ffd19b" stroke-opacity=".12" stroke-width="120"/>`,
+    neon: `<linearGradient id="base" x1="0" y1="1" x2="1" y2="0"><stop stop-color="#03040a"/><stop offset=".55" stop-color="#10112a"/><stop offset="1" stop-color="#14061c"/></linearGradient><radialGradient id="cyan"><stop stop-color="#33e7ff" stop-opacity=".25"/><stop offset="1" stop-color="#33e7ff" stop-opacity="0"/></radialGradient><radialGradient id="pink"><stop stop-color="#ff4fc8" stop-opacity=".2"/><stop offset="1" stop-color="#ff4fc8" stop-opacity="0"/></radialGradient><rect width="100%" height="100%" fill="url(#base)"/><circle cx="${width * .16}" cy="${height * .75}" r="430" fill="url(#cyan)"/><circle cx="${width * .9}" cy="${height * .16}" r="390" fill="url(#pink)"/>`,
+    obsidian: `<linearGradient id="base" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#050506"/><stop offset=".5" stop-color="#141416"/><stop offset="1" stop-color="#020203"/></linearGradient><pattern id="grid" width="110" height="110" patternUnits="userSpaceOnUse" patternTransform="rotate(18)"><path d="M110 0H0V110" fill="none" stroke="#fff" stroke-opacity=".025"/></pattern><rect width="100%" height="100%" fill="url(#base)"/><rect width="100%" height="100%" fill="url(#grid)"/>`,
+    meadow: `<linearGradient id="base" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#193246"/><stop offset=".58" stop-color="#254d50"/><stop offset="1" stop-color="#14271c"/></linearGradient><radialGradient id="sun"><stop stop-color="#f4efb2" stop-opacity=".25"/><stop offset="1" stop-color="#f4efb2" stop-opacity="0"/></radialGradient><rect width="100%" height="100%" fill="url(#base)"/><circle cx="${width * .76}" cy="${height * .18}" r="420" fill="url(#sun)"/>`,
   }
 
   return themes[template] ?? themes.midnight
@@ -67,6 +73,7 @@ function themeSvg(template, width, height) {
 function backgroundSvg(post, width, height, design) {
   const light = design.template === 'paper'
   return Buffer.from(`<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">${themeSvg(design.template, width, height)}
+    <rect width="100%" height="100%" fill="#000" opacity="${design.overlayOpacity / 100}"/>
     <text x="90" y="105" fill="${light ? '#4f4a43' : '#8b9096'}" font-family="sans-serif" font-size="18" font-weight="700" letter-spacing="7">SILENT FORWARD</text>
     <text x="90" y="${height - 70}" fill="${light ? '#5e5850' : '#73787e'}" font-family="sans-serif" font-size="20">@silentforward</text>
   </svg>`)
@@ -74,17 +81,18 @@ function backgroundSvg(post, width, height, design) {
 
 async function textOverlay(post, width, height, design) {
   const font = fonts[design.font]
-  const quote = sanitizeText(post.quote, 220)
+  const rawQuote = sanitizeText(post.quote, 220)
+  const quote = design.textCase === 'uppercase' ? rawQuote.toUpperCase() : rawQuote
   const textColor = design.template === 'paper' ? '#171714' : '#f6f6f2'
   const contentWidth = width - 180
   const textBuffer = await sharp({
     text: {
-      text: `<span foreground="${textColor}" font_weight="700">${escapeXml(quote)}</span>`,
+      text: `<span foreground="${textColor}" font_weight="700" letter_spacing="${design.letterSpacing * 1024}">${escapeXml(quote)}</span>`,
       font: `${font.family} ${design.fontSize}`,
       fontfile: font.file,
       width: contentWidth,
       align: design.textAlign,
-      spacing: Math.round(design.fontSize * .12),
+      spacing: Math.round(design.fontSize * ((design.lineHeight - 100) / 100)),
       wrap: 'word-char',
       rgba: true,
     },
@@ -133,6 +141,11 @@ function audioSource(music, duration) {
     deep: '0.02*(sin(2*PI*110*t)+sin(2*PI*146.83*t)+sin(2*PI*196*t))',
     focus: '0.016*(sin(2*PI*196*t)+sin(2*PI*246.94*t)+sin(2*PI*293.66*t))',
     pulse: '0.022*sin(2*PI*110*t)*(0.65+0.35*sin(2*PI*0.5*t))',
+    serenity: '0.014*(sin(2*PI*130.81*t)+sin(2*PI*196*t)+sin(2*PI*261.63*t))*(0.75+0.25*sin(2*PI*0.08*t))',
+    nostalgia: '0.013*(sin(2*PI*146.83*t)+sin(2*PI*220*t)+sin(2*PI*293.66*t))*(0.72+0.28*sin(2*PI*0.12*t))',
+    horizon: '0.015*(sin(2*PI*164.81*t)+sin(2*PI*246.94*t)+sin(2*PI*329.63*t))',
+    starlight: '0.011*(sin(2*PI*261.63*t)+sin(2*PI*392*t)+sin(2*PI*523.25*t))*(0.7+0.3*sin(2*PI*0.16*t))',
+    snowfall: '0.01*(sin(2*PI*174.61*t)+sin(2*PI*233.08*t)+sin(2*PI*349.23*t))*(0.68+0.32*sin(2*PI*0.06*t))',
   }
 
   return music === 'silent'
@@ -148,6 +161,9 @@ function backgroundFilter(animation, width, height, duration) {
     slide: `scale=${scaledWidth}:${scaledHeight},crop=${width}:${height}:x='(in_w-out_w)*(1-t/${duration})':y='(in_h-out_h)/2'`,
     zoom: `zoompan=z='min(zoom+0.00045,1.065)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=1:s=${width}x${height}:fps=30`,
     pulse: `zoompan=z='1.025+0.018*sin(on/18)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=1:s=${width}x${height}:fps=30`,
+    float: `scale=${scaledWidth}:${scaledHeight},crop=${width}:${height}:x='(in_w-out_w)*(0.5+0.35*sin(t*0.35))':y='(in_h-out_h)*(0.5+0.32*cos(t*0.42))'`,
+    pan: `scale=${scaledWidth}:${scaledHeight},crop=${width}:${height}:x='(in_w-out_w)*(0.5+0.5*sin(t*0.22))':y='(in_h-out_h)/2'`,
+    breathe: `zoompan=z='1.018+0.012*sin(on/25)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=1:s=${width}x${height}:fps=30`,
     static: `scale=${width}:${height}`,
   }
   return filters[animation] ?? filters.drift

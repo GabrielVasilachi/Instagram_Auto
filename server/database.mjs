@@ -1,6 +1,7 @@
 import { supabase } from './supabase.mjs'
 import { normalizeDesign } from './design.mjs'
 import { withRemoteRetries } from './retry.mjs'
+import { POST_WEEKDAYS, REEL_TIMES } from './content-plan.mjs'
 
 const retryOptions = {
   attempts: 5,
@@ -73,6 +74,8 @@ function settingsFromDatabase(settings) {
     autopilot: settings.autopilot,
     postTime: settings.post_time.slice(0, 5),
     reelTime: settings.reel_time.slice(0, 5),
+    reelTimes: REEL_TIMES,
+    postWeekdays: POST_WEEKDAYS,
     timezone: settings.timezone,
     queueDays: settings.queue_days,
     quoteCursor: settings.quote_cursor,
@@ -109,6 +112,8 @@ export async function loadDatabase() {
       autopilot: settings.autopilot,
       postTime: settings.postTime,
       reelTime: settings.reelTime,
+      reelTimes: settings.reelTimes,
+      postWeekdays: settings.postWeekdays,
       timezone: settings.timezone,
       queueDays: settings.queueDays,
     },
@@ -231,4 +236,10 @@ export async function releaseExpiredClaims(now = new Date()) {
 
 export async function deletePost(id) {
   await databaseRequest('delete-post', () => supabase.from('posts').delete().eq('id', id))
+}
+
+export async function deletePosts(ids) {
+  if (!ids.length) return []
+  const data = await databaseRequest('delete-posts', () => supabase.from('posts').delete().in('id', ids).select('id'))
+  return data
 }

@@ -7,13 +7,14 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { expiredSessionCookie, isAllowedOrigin, issueSession, passwordMatches, readSessionCookie, sessionCookie, verifySession } from './auth.mjs'
 import { cloudinaryConfigured, uploadToCloudinary } from './cloudinary.mjs'
-import { beginWorkerRun, claimPostForPublishing, claimWorkerLease, deletePost, finishWorkerRun, insertPost, insertPosts, loadDatabase, loadPost, loadWorkerState, releaseExpiredClaims, releaseWorkerLease, savePost, updateSettings } from './database.mjs'
+import { beginWorkerRun, claimPostForPublishing, claimWorkerLease, deletePost, deletePosts, finishWorkerRun, insertPost, insertPosts, loadDatabase, loadPost, loadWorkerState, releaseExpiredClaims, releaseWorkerLease, savePost, updateSettings } from './database.mjs'
+import { captionFor, POST_TIME, POST_WEEKDAYS, REEL_TIMES } from './content-plan.mjs'
 import { DESIGN_OPTIONS, normalizeAccent, normalizeDesign, randomizedDesign, sanitizeText } from './design.mjs'
 import { instagramConfigured, instagramRequest, publishToInstagram } from './instagram.mjs'
 import { generateImage, generateMedia } from './media.mjs'
 import { validateWorkerEnvironment } from './preflight.mjs'
 import { isRetryablePublishError, retryDelayMs, withRemoteRetries } from './retry.mjs'
-import { addDaysAtTime, firstAvailableSlot } from './time.mjs'
+import { scheduledSlots } from './time.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const mediaDirectory = process.env.VERCEL ? '/tmp/generated' : path.join(root, 'generated')
@@ -116,26 +117,6 @@ app.post('/api/worker/run', async (request, response) => {
 
 app.use('/api', requireAuthentication, validateOrigin)
 
-function captionFor(quote, format, cursor) {
-  const hooks = [
-    'Save this for the day you need it most.',
-    'Read it twice. Then act on it.',
-    'Your reminder to keep moving forward.',
-    'Send this to someone who refuses to quit.',
-    'A quiet reminder for the work nobody sees.',
-    'Keep this close when motivation gets quiet.',
-  ]
-  const hashtagSets = [
-    '#motivation #discipline #mindset #selfimprovement #successmindset #dailyquotes #growthmindset #consistency #focus #personaldevelopment #silentforward',
-    '#motivationdaily #disciplineequalsfreedom #mindsetshift #mentalstrength #inspirationdaily #positivehabits #goals #productivity #selfgrowth #keepgoing #silentforward',
-    '#motivationalreels #reelsmotivation #mindsetmatters #dailymotivation #hardwork #successquotes #confidence #betterself #lifequotes #progress #silentforward',
-    '#quietgrowth #deepwork #dailyfocus #resilience #habits #purpose #momentum #buildinpublic #mindsetcoach #forward #silentforward',
-  ]
-  const hook = hooks[cursor % hooks.length]
-  const hashtags = hashtagSets[(cursor + (format === 'reel' ? 1 : 0)) % hashtagSets.length]
-  return `${hook}\n\n${quote}\n\nQuiet work. Visible results. Follow @silentforward for a daily reset.\n\n${hashtags}`
-}
-
 function validTime(value) {
   return /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(String(value ?? ''))
 }
@@ -192,6 +173,12 @@ app.get('/api/dashboard', async (_request, response) => {
     },
     settings: database.settings,
     designOptions: DESIGN_OPTIONS,
+    contentPlan: {
+      reelsPerDay: REEL_TIMES.length,
+      reelTimes: REEL_TIMES,
+      postsPerWeek: POST_WEEKDAYS.length,
+      postWeekdays: POST_WEEKDAYS,
+    },
     posts: database.posts,
     stats: {
       scheduled: database.posts.filter((post) => post.status === 'scheduled').length,
@@ -206,6 +193,19 @@ app.get('/api/quotes/random', async (request, response) => {
   const count = Math.min(8, Math.max(1, Number(request.query.count) || 1))
   const start = Math.floor(Math.random() * quotes.length)
   response.json(Array.from({ length: count }, (_value, index) => quotes[(start + index) % quotes.length]))
+})
+
+app.get('/api/ideas/random', async (request, response) => {
+  const quotes = JSON.parse(await readFile(quotesFile, 'utf8'))
+  const format = request.query.format === 'post' ? 'post' : 'reel'
+  const cursor = Math.floor(Math.random() * quotes.length)
+  const quote = sanitizeText(quotes[cursor], 220)
+  response.json({
+    quote,
+    caption: captionFor(quote, format, cursor),
+    accent: ['#d9ff3f', '#ff5c35', '#62e6ff', '#d8a7ff', '#ffcf5c', '#71f6a5', '#ff7eb6'][cursor % 7],
+    design: randomizedDesign(cursor, format),
+  })
 })
 
 app.post('/api/posts', async (request, response) => {
@@ -302,34 +302,33 @@ async function fillQueue() {
   const additions = []
   let cursor = database.quoteCursor
 
-  for (const format of ['post', 'reel']) {
-    const pending = database.posts
-      .filter((post) => post.status === 'scheduled' && post.format === format)
-      .sort((left, right) => new Date(left.scheduledFor) - new Date(right.scheduledFor))
-    const needed = Math.max(0, database.settings.queueDays - pending.length)
-    const time = format === 'post' ? database.settings.postTime : database.settings.reelTime
-    let nextSlot = pending.length
-      ? addDaysAtTime(new Date(pending.at(-1).scheduledFor), 1, time, database.settings.timezone)
-      : firstAvailableSlot(time, database.settings.timezone)
+  const occupied = new Set(database.posts.map((post) => `${post.format}:${new Date(post.scheduledFor).toISOString().slice(0, 16)}`))
+  const plans = [
+    { format: 'reel', slots: scheduledSlots({ times: REEL_TIMES, timeZone: database.settings.timezone, days: database.settings.queueDays }) },
+    { format: 'post', slots: scheduledSlots({ times: [database.settings.postTime || POST_TIME], weekdays: POST_WEEKDAYS, timeZone: database.settings.timezone, days: database.settings.queueDays }) },
+  ]
 
-    for (let index = 0; index < needed; index += 1) {
+  for (const plan of plans) {
+    for (const nextSlot of plan.slots) {
+      const slotKey = `${plan.format}:${nextSlot.toISOString().slice(0, 16)}`
+      if (occupied.has(slotKey)) continue
       const quote = sanitizeText(quotes[cursor % quotes.length], 220)
       additions.push({
         id: randomUUID(),
         quote,
-        caption: captionFor(quote, format, cursor),
+        caption: captionFor(quote, plan.format, cursor),
         accent: ['#d9ff3f', '#ff5c35', '#62e6ff', '#d8a7ff', '#ffcf5c', '#71f6a5'][cursor % 6],
-        format,
+        format: plan.format,
         status: 'scheduled',
         scheduledFor: nextSlot.toISOString(),
         createdAt: new Date().toISOString(),
         autoGenerated: true,
-        design: randomizedDesign(cursor, format),
+        design: randomizedDesign(cursor, plan.format),
         retryCount: 0,
         nextAttemptAt: null,
       })
+      occupied.add(slotKey)
       cursor += 1
-      nextSlot = addDaysAtTime(nextSlot, 1, time, database.settings.timezone)
     }
   }
 
@@ -339,6 +338,14 @@ async function fillQueue() {
   }
   return additions
 }
+
+app.post('/api/queue/rebuild', async (_request, response) => {
+  const database = await loadDatabase()
+  const removable = database.posts.filter((post) => post.status === 'scheduled' && post.autoGenerated).map((post) => post.id)
+  await deletePosts(removable)
+  const additions = await fillQueue()
+  response.json({ removed: removable.length, created: additions.length })
+})
 
 async function publishPost(postId) {
   const existing = await loadPost(postId)
@@ -505,9 +512,14 @@ if (process.env.RUN_ONCE === 'true') {
 }
 
 if (!process.env.VERCEL && process.env.NODE_ENV !== 'test') {
-  await fillQueue()
-  cron.schedule('* * * * *', () => publishDuePosts().catch((error) => console.error(`[scheduler] ${error.message}`)), { timezone: 'Europe/Chisinau' })
-  cron.schedule('5 * * * *', () => fillQueue().catch((error) => console.error(`[queue] ${error.message}`)), { timezone: 'Europe/Chisinau' })
+  if (process.env.ENABLE_LOCAL_WORKER === 'true') {
+    await fillQueue()
+    cron.schedule('* * * * *', () => publishDuePosts().catch((error) => console.error(`[scheduler] ${error.message}`)), { timezone: 'Europe/Chisinau' })
+    cron.schedule('5 * * * *', () => fillQueue().catch((error) => console.error(`[queue] ${error.message}`)), { timezone: 'Europe/Chisinau' })
+    console.log('[local] Workerul local este activat explicit.')
+  } else {
+    console.log('[local] Workerul local este oprit; Supabase continuă automatizarea remote.')
+  }
   app.listen(port, '0.0.0.0', () => console.log(`Silent Forward API: http://0.0.0.0:${port}`))
 }
 

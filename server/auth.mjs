@@ -61,5 +61,18 @@ export function isAllowedOrigin(request) {
   const origin = request.get('origin')
   if (!origin) return true
   const host = request.get('host')
-  return origin === `https://${host}` || origin === `http://${host}`
+  const forwardedHost = request.get('x-forwarded-host')
+  if ([host, forwardedHost].filter(Boolean).some((value) => origin === `https://${value}` || origin === `http://${value}`)) return true
+
+  // Vite serves the UI on :5173 and proxies /api to :5174. Both endpoints are
+  // the same local application, but a strict host+port comparison rejects the
+  // login request. Keep the production check strict and only relax loopback.
+  try {
+    const originUrl = new URL(origin)
+    const requestHost = String(forwardedHost || host || '').split(':')[0]
+    const loopback = new Set(['localhost', '127.0.0.1', '::1', '[::1]'])
+    return loopback.has(originUrl.hostname) && loopback.has(requestHost)
+  } catch {
+    return false
+  }
 }

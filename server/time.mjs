@@ -31,6 +31,11 @@ function addCalendarDays(parts, amount) {
   return { year: date.getUTCFullYear(), month: date.getUTCMonth() + 1, day: date.getUTCDate() }
 }
 
+function isoWeekday(parts) {
+  const day = new Date(Date.UTC(parts.year, parts.month - 1, parts.day)).getUTCDay()
+  return day === 0 ? 7 : day
+}
+
 export function slotForLocalDate(dateParts, time, timeZone) {
   const [hour, minute] = String(time).split(':').map(Number)
   return localPartsToUtc({ ...dateParts, hour, minute, second: 0 }, timeZone)
@@ -52,4 +57,21 @@ export function firstAvailableSlot(time, timeZone, now = new Date(), forceTomorr
 export function addDaysAtTime(date, amount, time, timeZone) {
   const current = partsAt(date, timeZone)
   return slotForLocalDate(addCalendarDays(current, amount), time, timeZone)
+}
+
+export function scheduledSlots({ times, timeZone, days, weekdays = null, now = new Date() }) {
+  const today = partsAt(now, timeZone)
+  const allowedDays = Array.isArray(weekdays) ? new Set(weekdays.map(Number)) : null
+  const slots = []
+
+  for (let offset = 0; offset < days; offset += 1) {
+    const dateParts = addCalendarDays(today, offset)
+    if (allowedDays && !allowedDays.has(isoWeekday(dateParts))) continue
+    for (const time of times) {
+      const slot = slotForLocalDate(dateParts, time, timeZone)
+      if (slot > now) slots.push(slot)
+    }
+  }
+
+  return slots.sort((left, right) => left - right)
 }

@@ -1,10 +1,11 @@
 export const DESIGN_OPTIONS = {
-  templates: ['midnight', 'aurora', 'ember', 'ocean', 'monochrome', 'paper'],
+  templates: ['midnight', 'aurora', 'ember', 'ocean', 'monochrome', 'paper', 'forest', 'dusk', 'sandstone', 'neon', 'obsidian', 'meadow'],
   fonts: ['sans', 'serif', 'mono'],
   textPositions: ['top', 'center', 'bottom'],
   textAlignments: ['left', 'center', 'right'],
-  animations: ['drift', 'zoom', 'slide', 'pulse', 'static'],
-  music: ['ambient', 'deep', 'focus', 'pulse', 'silent'],
+  textCases: ['normal', 'uppercase'],
+  animations: ['drift', 'zoom', 'slide', 'pulse', 'float', 'pan', 'breathe', 'static'],
+  music: ['ambient', 'deep', 'focus', 'pulse', 'serenity', 'nostalgia', 'horizon', 'starlight', 'snowfall', 'silent'],
 }
 
 export const DEFAULT_DESIGN = {
@@ -17,6 +18,10 @@ export const DEFAULT_DESIGN = {
   duration: 8,
   music: 'ambient',
   musicVolume: 55,
+  textCase: 'normal',
+  letterSpacing: 0,
+  lineHeight: 112,
+  overlayOpacity: 10,
 }
 
 function oneOf(value, allowed, fallback) {
@@ -58,6 +63,10 @@ export function normalizeDesign(value = {}, format = 'post') {
     duration: numberBetween(input.duration, 6, 15, defaults.duration),
     music: oneOf(input.music, DESIGN_OPTIONS.music, defaults.music),
     musicVolume: numberBetween(input.musicVolume, 0, 100, defaults.musicVolume),
+    textCase: oneOf(input.textCase, DESIGN_OPTIONS.textCases, defaults.textCase),
+    letterSpacing: numberBetween(input.letterSpacing, -2, 12, defaults.letterSpacing),
+    lineHeight: numberBetween(input.lineHeight, 90, 160, defaults.lineHeight),
+    overlayOpacity: numberBetween(input.overlayOpacity, 0, 65, defaults.overlayOpacity),
   }
 }
 
@@ -72,5 +81,9 @@ export function randomizedDesign(cursor = 0, format = 'post') {
     duration: 7 + (cursor % 5),
     music: DESIGN_OPTIONS.music[cursor % DESIGN_OPTIONS.music.length],
     musicVolume: 42 + (cursor % 4) * 8,
+    textCase: DESIGN_OPTIONS.textCases[Math.floor(cursor / 2) % DESIGN_OPTIONS.textCases.length],
+    letterSpacing: (cursor % 4) * 2,
+    lineHeight: 104 + (cursor % 4) * 6,
+    overlayOpacity: 6 + (cursor % 5) * 5,
   }, format)
 }

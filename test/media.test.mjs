@@ -20,7 +20,18 @@ test('image and reel render with bundled fonts and visible text from frame one',
     assert.equal(metadata.height, 1350)
     const videoPath = await generateMedia({
       ...base, id: 'reel', format: 'reel',
-      design: { ...base.design, template: 'ember', font: 'serif', animation: 'drift', music: 'silent', duration: 6 },
+      design: {
+        ...base.design,
+        template: 'meadow',
+        font: 'serif',
+        animation: 'breathe',
+        music: 'starlight',
+        musicVolume: 42,
+        letterSpacing: 2,
+        lineHeight: 118,
+        overlayOpacity: 14,
+        duration: 6,
+      },
     }, directory)
     assert.ok((await stat(videoPath)).size > 50_000)
   } finally {
