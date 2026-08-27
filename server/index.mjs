@@ -258,7 +258,24 @@ app.post('/api/posts/:id/duplicate', async (request, response) => {
 app.post('/api/posts/:id/preview', async (request, response) => {
   const post = await loadPost(request.params.id)
   if (!post) return response.status(404).json({ error: 'Postarea nu există.' })
-  response.json({ ...post, mediaUrl: `/api/posts/${post.id}/media?v=${Date.now()}` })
+
+  // Browsers request MP4 files in ranges. Generating a new temporary file for
+  // every range request is both slow and unreliable on a serverless function.
+  // Render the Reel while the UI shows its loading state, upload it once, then
+  // let Cloudinary serve the seekable video from its CDN.
+  if (post.format === 'reel' && !post.mediaUrl && cloudinaryConfigured()) {
+    await mkdir(mediaDirectory, { recursive: true })
+    const previewPost = { ...post, id: `${post.id}-preview` }
+    const filePath = await generateMedia(previewPost, mediaDirectory)
+    try {
+      const mediaUrl = await uploadToCloudinary(filePath, previewPost)
+      return response.json({ ...post, mediaUrl })
+    } finally {
+      await unlink(filePath).catch(() => {})
+    }
+  }
+
+  response.json({ ...post, mediaUrl: post.mediaUrl || `/api/posts/${post.id}/media?v=${Date.now()}` })
 })
 
 app.get('/api/posts/:id/media', async (request, response) => {
