@@ -11,6 +11,7 @@ import { claimPostForPublishing, deletePost, insertPost, insertPosts, loadDataba
 import { DESIGN_OPTIONS, normalizeAccent, normalizeDesign, randomizedDesign, sanitizeText } from './design.mjs'
 import { instagramConfigured, instagramRequest, publishToInstagram } from './instagram.mjs'
 import { generateImage, generateMedia } from './media.mjs'
+import { withRemoteRetries } from './retry.mjs'
 import { addDaysAtTime, firstAvailableSlot } from './time.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -388,8 +389,17 @@ app.use((error, _request, response, _next) => {
 await mkdir(mediaDirectory, { recursive: true })
 
 if (process.env.RUN_ONCE === 'true') {
-  await fillQueue()
-  await publishDuePosts()
+  await withRemoteRetries(async () => {
+    await fillQueue()
+    await publishDuePosts()
+  }, {
+    attempts: 5,
+    baseDelayMs: 15_000,
+    onRetry: ({ attempt, delayMs, error }) => {
+      const message = error instanceof Error ? error.message : String(error)
+      console.warn(`[publisher] Serviciu remote indisponibil temporar (${message}). Reîncercarea ${attempt + 1}/5 începe în ${Math.round(delayMs / 1000)}s.`)
+    },
+  })
   process.exit(0)
 }
 
