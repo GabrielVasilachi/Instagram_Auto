@@ -44,6 +44,10 @@ function authConfigured() {
   return Boolean(process.env.ADMIN_PASSWORD && process.env.SESSION_SECRET)
 }
 
+function isRemoteMediaUrl(value) {
+  return typeof value === 'string' && /^https:\/\/res\.cloudinary\.com\//i.test(value)
+}
+
 function authenticated(request) {
   return authConfigured() && verifySession(readSessionCookie(request), process.env.SESSION_SECRET)
 }
@@ -263,19 +267,20 @@ app.post('/api/posts/:id/preview', async (request, response) => {
   // every range request is both slow and unreliable on a serverless function.
   // Render the Reel while the UI shows its loading state, upload it once, then
   // let Cloudinary serve the seekable video from its CDN.
-  if (post.format === 'reel' && !post.mediaUrl && cloudinaryConfigured()) {
+  if (post.format === 'reel' && !isRemoteMediaUrl(post.mediaUrl) && cloudinaryConfigured()) {
     await mkdir(mediaDirectory, { recursive: true })
     const previewPost = { ...post, id: `${post.id}-preview` }
     const filePath = await generateMedia(previewPost, mediaDirectory)
     try {
       const mediaUrl = await uploadToCloudinary(filePath, previewPost)
-      return response.json({ ...post, mediaUrl })
+      const updated = await savePost({ ...post, mediaUrl })
+      return response.json(updated)
     } finally {
       await unlink(filePath).catch(() => {})
     }
   }
 
-  response.json({ ...post, mediaUrl: post.mediaUrl || `/api/posts/${post.id}/media?v=${Date.now()}` })
+  response.json({ ...post, mediaUrl: isRemoteMediaUrl(post.mediaUrl) ? post.mediaUrl : `/api/posts/${post.id}/media?v=${Date.now()}` })
 })
 
 app.get('/api/posts/:id/media', async (request, response) => {
