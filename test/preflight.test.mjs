@@ -19,3 +19,8 @@ test('worker preflight accepts the current Supabase secret format', () => {
 test('worker preflight rejects legacy Supabase JWT keys', () => {
   assert.throws(() => validateWorkerEnvironment({ ...validEnvironment, SUPABASE_SECRET_KEY: 'eyJlegacy' }), /cheie Supabase veche/)
 })
+
+test('remote scheduler requires its own secret', () => {
+  assert.throws(() => validateWorkerEnvironment({ ...validEnvironment, REMOTE_SCHEDULER: 'true' }), /SCHEDULER_SECRET/)
+  assert.equal(validateWorkerEnvironment({ ...validEnvironment, REMOTE_SCHEDULER: 'true', SCHEDULER_SECRET: 'scheduler-secret' }).schedulerProtected, true)
+})

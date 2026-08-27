@@ -1,5 +1,29 @@
 import { supabase } from './supabase.mjs'
 import { normalizeDesign } from './design.mjs'
+import { withRemoteRetries } from './retry.mjs'
+
+const retryOptions = {
+  attempts: 5,
+  baseDelayMs: 2_000,
+  onRetry: ({ attempt, delayMs, error }) => {
+    const message = error instanceof Error ? error.message : String(error?.message ?? error)
+    console.warn(`[database] ${message}. Reîncercarea ${attempt + 1}/5 începe în ${Math.round(delayMs / 1000)}s.`)
+  },
+}
+
+async function databaseRequest(label, operation) {
+  return withRemoteRetries(async () => {
+    const result = await operation()
+    if (result.error) throw result.error
+    return result.data
+  }, {
+    ...retryOptions,
+    onRetry: (state) => {
+      console.warn(`[database:${label}] Cererea remote a eșuat temporar.`)
+      retryOptions.onRetry(state)
+    },
+  })
+}
 
 function postFromDatabase(post) {
   return {
@@ -17,6 +41,8 @@ function postFromDatabase(post) {
     instagramMediaId: post.instagram_media_id,
     publishedAt: post.published_at,
     error: post.error,
+    retryCount: post.retry_count ?? 0,
+    nextAttemptAt: post.next_attempt_at ?? null,
   }
 }
 
@@ -36,6 +62,8 @@ function postToDatabase(post) {
     instagram_media_id: post.instagramMediaId ?? null,
     published_at: post.publishedAt ?? null,
     error: post.error ?? '',
+    retry_count: post.retryCount ?? 0,
+    next_attempt_at: post.nextAttemptAt ?? null,
   }
 }
 
@@ -52,17 +80,15 @@ function settingsFromDatabase(settings) {
 }
 
 export async function loadSettings() {
-  const { data, error } = await supabase.from('app_settings').select('*').eq('id', 1).single()
-  if (error) throw error
+  const data = await databaseRequest('settings', () => supabase.from('app_settings').select('*').eq('id', 1).single())
   return settingsFromDatabase(data)
 }
 
 export async function loadDatabase() {
   const [settings, postsResult] = await Promise.all([
     loadSettings(),
-    supabase.from('posts').select('*').order('scheduled_for', { ascending: true }),
+    databaseRequest('posts', () => supabase.from('posts').select('*').order('scheduled_for', { ascending: true })),
   ])
-  if (postsResult.error) throw postsResult.error
   return {
     schemaVersion: settings.schemaVersion,
     settings: {
@@ -72,7 +98,7 @@ export async function loadDatabase() {
       timezone: settings.timezone,
       queueDays: settings.queueDays,
     },
-    posts: postsResult.data.map(postFromDatabase),
+    posts: postsResult.map(postFromDatabase),
     quoteCursor: settings.quoteCursor,
   }
 }
@@ -88,15 +114,13 @@ export async function updateSettings(settings, quoteCursor) {
     updated_at: new Date().toISOString(),
   }
   if (quoteCursor !== undefined) values.quote_cursor = quoteCursor
-  const { data, error } = await supabase.from('app_settings').update(values).eq('id', 1).select('*').single()
-  if (error) throw error
+  const data = await databaseRequest('update-settings', () => supabase.from('app_settings').update(values).eq('id', 1).select('*').single())
   return settingsFromDatabase(data)
 }
 
 export async function insertPosts(posts) {
   if (!posts.length) return []
-  const { data, error } = await supabase.from('posts').insert(posts.map(postToDatabase)).select('*')
-  if (error) throw error
+  const data = await databaseRequest('insert-posts', () => supabase.from('posts').insert(posts.map(postToDatabase)).select('*'))
   return data.map(postFromDatabase)
 }
 
@@ -106,30 +130,37 @@ export async function insertPost(post) {
 }
 
 export async function loadPost(id) {
-  const { data, error } = await supabase.from('posts').select('*').eq('id', id).maybeSingle()
-  if (error) throw error
+  const data = await databaseRequest('load-post', () => supabase.from('posts').select('*').eq('id', id).maybeSingle())
   return data ? postFromDatabase(data) : null
 }
 
 export async function savePost(post) {
-  const { data, error } = await supabase.from('posts').upsert(postToDatabase(post)).select('*').single()
-  if (error) throw error
+  const data = await databaseRequest('save-post', () => supabase.from('posts').upsert(postToDatabase(post)).select('*').single())
   return postFromDatabase(data)
 }
 
 export async function claimPostForPublishing(id) {
-  const { data, error } = await supabase
+  const leaseExpiresAt = new Date(Date.now() + 15 * 60_000).toISOString()
+  const data = await databaseRequest('claim-post', () => supabase
     .from('posts')
-    .update({ status: 'publishing', error: '' })
+    .update({ status: 'publishing', error: '', next_attempt_at: leaseExpiresAt })
     .eq('id', id)
     .in('status', ['scheduled', 'failed'])
     .select('*')
-    .maybeSingle()
-  if (error) throw error
+    .maybeSingle())
   return data ? postFromDatabase(data) : null
 }
 
+export async function releaseExpiredClaims(now = new Date()) {
+  const data = await databaseRequest('release-expired-claims', () => supabase
+    .from('posts')
+    .update({ status: 'failed', error: 'Publicarea a fost întreruptă după pornire. Verifică Instagram înainte de reîncercare pentru a evita un duplicat.', next_attempt_at: null })
+    .eq('status', 'publishing')
+    .lt('next_attempt_at', now.toISOString())
+    .select('*'))
+  return data.map(postFromDatabase)
+}
+
 export async function deletePost(id) {
-  const { error } = await supabase.from('posts').delete().eq('id', id)
-  if (error) throw error
+  await databaseRequest('delete-post', () => supabase.from('posts').delete().eq('id', id))
 }

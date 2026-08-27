@@ -21,6 +21,25 @@ export function isTransientRemoteError(error) {
     || message.includes('temporarily unavailable')
 }
 
+export function isRetryablePublishError(error) {
+  if (isTransientRemoteError(error)) return true
+  const message = String(error?.message ?? error ?? '').toLowerCase()
+  return message.includes('try again')
+    || message.includes('retry')
+    || message.includes('rate limit')
+    || message.includes('too many requests')
+    || message.includes('internal server error')
+    || message.includes('service unavailable')
+    || message.includes('temporarily')
+    || message.includes('connection')
+    || message.includes('procesează videoclipul prea mult')
+}
+
+export function retryDelayMs(attempt) {
+  const delays = [60_000, 5 * 60_000, 15 * 60_000, 60 * 60_000]
+  return delays[Math.min(Math.max(1, Number(attempt) || 1) - 1, delays.length - 1)]
+}
+
 export async function withRemoteRetries(operation, options = {}) {
   const attempts = Math.max(1, Number(options.attempts) || 5)
   const baseDelayMs = Math.max(0, Number(options.baseDelayMs) || 15_000)

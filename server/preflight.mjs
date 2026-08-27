@@ -11,12 +11,15 @@ const workerSecrets = [
 ]
 
 export function validateWorkerEnvironment(environment = process.env) {
-  const missing = workerSecrets.filter((name) => !environment[name])
+  const required = environment.REMOTE_SCHEDULER === 'true'
+    ? [...workerSecrets, 'SCHEDULER_SECRET']
+    : workerSecrets
+  const missing = required.filter((name) => !environment[name])
   if (missing.length) throw new Error(`Lipsesc variabilele remote: ${missing.join(', ')}`)
   if (!environment.SUPABASE_SECRET_KEY.startsWith('sb_secret_')) {
-    throw new Error('GitHub Actions folosește o cheie Supabase veche. Actualizează secretul SUPABASE_SECRET_KEY cu cheia sb_secret_ curentă.')
+    throw new Error('Workerul remote folosește o cheie Supabase veche. Actualizează SUPABASE_SECRET_KEY cu cheia sb_secret_ curentă.')
   }
-  return { supabaseKeyFormat: 'current', services: ['supabase', 'cloudinary', 'instagram'] }
+  return { supabaseKeyFormat: 'current', services: ['supabase', 'cloudinary', 'instagram'], schedulerProtected: Boolean(environment.SCHEDULER_SECRET) }
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
