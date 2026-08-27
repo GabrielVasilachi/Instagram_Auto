@@ -79,6 +79,20 @@ function settingsFromDatabase(settings) {
   }
 }
 
+function workerStateFromDatabase(state) {
+  if (!state) return null
+  return {
+    runId: state.run_id,
+    source: state.source,
+    status: state.status,
+    startedAt: state.started_at,
+    finishedAt: state.finished_at,
+    lastSuccessAt: state.last_success_at,
+    lastError: state.last_error,
+    lastResult: state.last_result ?? {},
+  }
+}
+
 export async function loadSettings() {
   const data = await databaseRequest('settings', () => supabase.from('app_settings').select('*').eq('id', 1).single())
   return settingsFromDatabase(data)
@@ -101,6 +115,60 @@ export async function loadDatabase() {
     posts: postsResult.map(postFromDatabase),
     quoteCursor: settings.quoteCursor,
   }
+}
+
+export async function loadWorkerState() {
+  const data = await databaseRequest('worker-state', () => supabase.from('worker_state').select('*').eq('id', 1).maybeSingle())
+  return workerStateFromDatabase(data)
+}
+
+export async function claimWorkerLease(name, owner, leaseSeconds = 240) {
+  const data = await databaseRequest('claim-worker-lease', () => supabase.rpc('claim_worker_lease', {
+    p_name: name,
+    p_owner: owner,
+    p_lease_seconds: leaseSeconds,
+  }))
+  return Boolean(data)
+}
+
+export async function releaseWorkerLease(name, owner) {
+  await databaseRequest('release-worker-lease', () => supabase.rpc('release_worker_lease', {
+    p_name: name,
+    p_owner: owner,
+  }))
+}
+
+export async function beginWorkerRun(runId, source) {
+  const now = new Date().toISOString()
+  const data = await databaseRequest('begin-worker-run', () => supabase.from('worker_state').upsert({
+    id: 1,
+    run_id: runId,
+    source: String(source || 'unknown').slice(0, 80),
+    status: 'running',
+    started_at: now,
+    finished_at: null,
+    updated_at: now,
+  }).select('*').single())
+  return workerStateFromDatabase(data)
+}
+
+export async function finishWorkerRun(runId, values) {
+  const now = new Date().toISOString()
+  const update = {
+    status: values.status,
+    finished_at: now,
+    last_error: String(values.error || '').slice(0, 2000),
+    last_result: values.result ?? {},
+    updated_at: now,
+  }
+  if (values.status === 'succeeded') update.last_success_at = now
+  const data = await databaseRequest('finish-worker-run', () => supabase.from('worker_state')
+    .update(update)
+    .eq('id', 1)
+    .eq('run_id', runId)
+    .select('*')
+    .maybeSingle())
+  return workerStateFromDatabase(data)
 }
 
 export async function updateSettings(settings, quoteCursor) {

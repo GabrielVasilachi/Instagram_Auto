@@ -29,6 +29,16 @@ type Post = {
 type Dashboard = {
   account: { connected: boolean; username: string; accountType: string }
   publishingReady: boolean
+  automation: {
+    configured: boolean
+    lastRun: null | {
+      status: 'idle' | 'running' | 'succeeded' | 'failed'
+      startedAt?: string
+      finishedAt?: string
+      lastSuccessAt?: string
+      lastError?: string
+    }
+  }
   posts: Post[]
   settings: { autopilot: boolean; postTime: string; reelTime: string; timezone: string; queueDays: number }
   stats: { scheduled: number; published: number; failed: number }
@@ -66,6 +76,7 @@ const defaultDesign: Design = {
 const initialDashboard: Dashboard = {
   account: { connected: false, username: 'silentforward', accountType: 'BUSINESS' },
   publishingReady: false,
+  automation: { configured: false, lastRun: null },
   posts: [],
   settings: { autopilot: true, postTime: '09:00', reelTime: '19:00', timezone: 'Europe/Chisinau', queueDays: 14 },
   stats: { scheduled: 0, published: 0, failed: 0 },
@@ -196,6 +207,8 @@ function DashboardApp({ onLogout }: { onLogout: () => void }) {
 
   const nextPost = useMemo(() => data.posts.find((post) => post.status === 'scheduled'), [data.posts])
   const visiblePosts = useMemo(() => data.posts.filter((post) => filter === 'all' || post.status === filter), [data.posts, filter])
+  const automationHealthy = Boolean(data.automation.lastRun?.lastSuccessAt
+    && Date.now() - new Date(data.automation.lastRun.lastSuccessAt).getTime() < 5 * 60_000)
 
   async function createPost(event: FormEvent) {
     event.preventDefault()
@@ -324,6 +337,14 @@ function DashboardApp({ onLogout }: { onLogout: () => void }) {
         </div>
       </header>
       {!data.publishingReady && <section className="notice-card danger"><strong>Publicarea remote nu este configurată complet.</strong><p>Verifică variabilele Instagram și Cloudinary.</p></section>}
+      {!data.automation.configured && <section className="notice-card danger"><strong>Programatorul Supabase nu este conectat la Vercel.</strong><p>Lipsește secretul comun al workerului remote.</p></section>}
+      {data.automation.configured && <section className={`notice-card ${automationHealthy ? '' : 'danger'}`}>
+        <strong>{automationHealthy ? 'Automatizarea remote este online.' : 'Automatizarea remote nu a raportat recent.'}</strong>
+        <p>{data.automation.lastRun?.lastSuccessAt
+          ? `Ultima verificare reușită: ${formatDate(data.automation.lastRun.lastSuccessAt)}.`
+          : 'Așteptăm prima execuție a programatorului Supabase.'}
+          {data.automation.lastRun?.lastError ? ` Ultima eroare: ${data.automation.lastRun.lastError}` : ''}</p>
+      </section>}
       {notice && <section className="global-notice"><span>{notice}</span><button onClick={() => setNotice('')}>×</button></section>}
       <section id="overview" className="metrics">
         <article><span>Programate</span><strong>{data.stats.scheduled}</strong><small>în coada remote</small></article>

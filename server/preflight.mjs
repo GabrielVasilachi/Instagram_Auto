@@ -10,8 +10,8 @@ const workerSecrets = [
   'INSTAGRAM_ACCOUNT_ID',
 ]
 
-export function validateWorkerEnvironment(environment = process.env) {
-  const required = environment.REMOTE_SCHEDULER === 'true'
+export function validateWorkerEnvironment(environment = process.env, options = {}) {
+  const required = options.scheduler
     ? [...workerSecrets, 'SCHEDULER_SECRET']
     : workerSecrets
   const missing = required.filter((name) => !environment[name])

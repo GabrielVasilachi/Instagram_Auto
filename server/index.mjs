@@ -7,7 +7,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { expiredSessionCookie, isAllowedOrigin, issueSession, passwordMatches, readSessionCookie, sessionCookie, verifySession } from './auth.mjs'
 import { cloudinaryConfigured, uploadToCloudinary } from './cloudinary.mjs'
-import { claimPostForPublishing, deletePost, insertPost, insertPosts, loadDatabase, loadPost, releaseExpiredClaims, savePost, updateSettings } from './database.mjs'
+import { beginWorkerRun, claimPostForPublishing, claimWorkerLease, deletePost, finishWorkerRun, insertPost, insertPosts, loadDatabase, loadPost, loadWorkerState, releaseExpiredClaims, releaseWorkerLease, savePost, updateSettings } from './database.mjs'
 import { DESIGN_OPTIONS, normalizeAccent, normalizeDesign, randomizedDesign, sanitizeText } from './design.mjs'
 import { instagramConfigured, instagramRequest, publishToInstagram } from './instagram.mjs'
 import { generateImage, generateMedia } from './media.mjs'
@@ -17,7 +17,6 @@ import { addDaysAtTime, firstAvailableSlot } from './time.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const mediaDirectory = process.env.VERCEL ? '/tmp/generated' : path.join(root, 'generated')
-const clientDirectory = path.join(root, 'dist')
 const quotesFile = path.join(root, 'content', 'quotes.json')
 const port = Number(process.env.PORT || process.env.API_PORT || 5174)
 const app = express()
@@ -104,7 +103,7 @@ app.post('/api/worker/run', async (request, response) => {
     return response.status(401).json({ error: 'Autorizare worker invalidă.' })
   }
   try {
-    response.json(await runRemoteWorker())
+    response.json(await runRemoteWorker({ source: 'supabase-cron', scheduler: true }))
   } catch (error) {
     console.error('[worker]', error instanceof Error ? error.message : error)
     response.status(500).json({ error: 'Rularea automată nu a putut fi finalizată.' })
@@ -179,10 +178,14 @@ async function profile() {
 }
 
 app.get('/api/dashboard', async (_request, response) => {
-  const [database, account] = await Promise.all([loadDatabase(), profile()])
+  const [database, account, workerState] = await Promise.all([loadDatabase(), profile(), loadWorkerState()])
   response.json({
     account,
     publishingReady: cloudinaryConfigured() && instagramConfigured(),
+    automation: {
+      configured: Boolean(process.env.SCHEDULER_SECRET),
+      lastRun: workerState,
+    },
     settings: database.settings,
     designOptions: DESIGN_OPTIONS,
     posts: database.posts,
@@ -272,6 +275,7 @@ app.get('/api/posts/:id/media', async (request, response) => {
 
 async function fillQueue() {
   const database = await loadDatabase()
+  if (!database.settings.autopilot) return []
   const quotes = JSON.parse(await readFile(quotesFile, 'utf8'))
   const additions = []
   let cursor = database.quoteCursor
@@ -287,7 +291,7 @@ async function fillQueue() {
       : firstAvailableSlot(time, database.settings.timezone)
 
     for (let index = 0; index < needed; index += 1) {
-      const quote = quotes[cursor % quotes.length]
+      const quote = sanitizeText(quotes[cursor % quotes.length], 220)
       additions.push({
         id: randomUUID(),
         quote,
@@ -307,8 +311,10 @@ async function fillQueue() {
     }
   }
 
-  await insertPosts(additions)
-  await updateSettings({ ...database.settings, schemaVersion: 3 }, cursor)
+  if (additions.length) {
+    await insertPosts(additions)
+    await updateSettings({ ...database.settings, schemaVersion: 3 }, cursor)
+  }
   return additions
 }
 
@@ -389,7 +395,7 @@ app.patch('/api/settings', async (request, response) => {
   response.json(await updateSettings({ ...settings, schemaVersion: 3 }))
 })
 
-async function publishDuePosts(limit = 4) {
+async function publishDuePosts(limit = 1) {
   await releaseExpiredClaims()
   const database = await loadDatabase()
   if (!database.settings.autopilot) return []
@@ -417,26 +423,44 @@ async function publishDuePosts(limit = 4) {
   return results
 }
 
-async function runRemoteWorker() {
-  validateWorkerEnvironment(process.env)
-  const additions = await fillQueue()
-  const published = await publishDuePosts()
-  return {
-    ok: true,
-    checkedAt: new Date().toISOString(),
-    queueAdditions: additions.length,
-    published: published.map((post) => ({ id: post.id, format: post.format, instagramMediaId: post.instagramMediaId })),
+async function runRemoteWorker(options = {}) {
+  validateWorkerEnvironment(process.env, { scheduler: Boolean(options.scheduler) })
+  const source = options.source || 'manual'
+  const runId = randomUUID()
+  const checkedAt = new Date().toISOString()
+  const acquired = await claimWorkerLease('instagram-publisher', runId, 240)
+  if (!acquired) {
+    return { ok: true, skipped: true, reason: 'worker-already-running', checkedAt, queueAdditions: 0, published: [] }
   }
-}
 
-if (process.env.SERVE_DASHBOARD === 'true') {
-  app.use(express.static(clientDirectory, { index: false, maxAge: '1h' }))
-  app.use((request, response, next) => {
-    if (request.method === 'GET' && !request.path.startsWith('/api')) {
-      return response.sendFile(path.join(clientDirectory, 'index.html'))
+  let runStarted = false
+  try {
+    await beginWorkerRun(runId, source)
+    runStarted = true
+    const additions = await fillQueue()
+    const published = await publishDuePosts(1)
+    const result = {
+      ok: true,
+      skipped: false,
+      checkedAt,
+      queueAdditions: additions.length,
+      published: published.map((post) => ({ id: post.id, format: post.format, instagramMediaId: post.instagramMediaId })),
     }
-    next()
-  })
+    await finishWorkerRun(runId, { status: 'succeeded', result })
+    return result
+  } catch (error) {
+    if (runStarted) {
+      await finishWorkerRun(runId, {
+        status: 'failed',
+        error: error instanceof Error ? error.message : String(error),
+        result: { checkedAt },
+      }).catch((stateError) => console.error('[worker-state]', stateError instanceof Error ? stateError.message : stateError))
+    }
+    throw error
+  } finally {
+    await releaseWorkerLease('instagram-publisher', runId)
+      .catch((error) => console.error('[worker-lease]', error instanceof Error ? error.message : error))
+  }
 }
 
 app.use((error, _request, response, _next) => {
@@ -447,7 +471,7 @@ app.use((error, _request, response, _next) => {
 await mkdir(mediaDirectory, { recursive: true })
 
 if (process.env.RUN_ONCE === 'true') {
-  await withRemoteRetries(() => runRemoteWorker(), {
+  await withRemoteRetries(() => runRemoteWorker({ source: 'github-manual' }), {
     attempts: 5,
     baseDelayMs: 15_000,
     onRetry: ({ attempt, delayMs, error }) => {
@@ -459,11 +483,9 @@ if (process.env.RUN_ONCE === 'true') {
 }
 
 if (!process.env.VERCEL && process.env.NODE_ENV !== 'test') {
-  if (process.env.REMOTE_SCHEDULER !== 'true') {
-    await fillQueue()
-    cron.schedule('* * * * *', () => publishDuePosts().catch((error) => console.error(`[scheduler] ${error.message}`)), { timezone: 'Europe/Chisinau' })
-    cron.schedule('5 * * * *', () => fillQueue().catch((error) => console.error(`[queue] ${error.message}`)), { timezone: 'Europe/Chisinau' })
-  }
+  await fillQueue()
+  cron.schedule('* * * * *', () => publishDuePosts().catch((error) => console.error(`[scheduler] ${error.message}`)), { timezone: 'Europe/Chisinau' })
+  cron.schedule('5 * * * *', () => fillQueue().catch((error) => console.error(`[queue] ${error.message}`)), { timezone: 'Europe/Chisinau' })
   app.listen(port, '0.0.0.0', () => console.log(`Silent Forward API: http://0.0.0.0:${port}`))
 }
 
