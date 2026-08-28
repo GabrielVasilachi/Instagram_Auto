@@ -65,6 +65,10 @@ function themeSvg(template, width, height) {
     neon: `<linearGradient id="base" x1="0" y1="1" x2="1" y2="0"><stop stop-color="#03040a"/><stop offset=".55" stop-color="#10112a"/><stop offset="1" stop-color="#14061c"/></linearGradient><radialGradient id="cyan"><stop stop-color="#33e7ff" stop-opacity=".25"/><stop offset="1" stop-color="#33e7ff" stop-opacity="0"/></radialGradient><radialGradient id="pink"><stop stop-color="#ff4fc8" stop-opacity=".2"/><stop offset="1" stop-color="#ff4fc8" stop-opacity="0"/></radialGradient><rect width="100%" height="100%" fill="url(#base)"/><circle cx="${width * .16}" cy="${height * .75}" r="430" fill="url(#cyan)"/><circle cx="${width * .9}" cy="${height * .16}" r="390" fill="url(#pink)"/>`,
     obsidian: `<linearGradient id="base" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#050506"/><stop offset=".5" stop-color="#141416"/><stop offset="1" stop-color="#020203"/></linearGradient><pattern id="grid" width="110" height="110" patternUnits="userSpaceOnUse" patternTransform="rotate(18)"><path d="M110 0H0V110" fill="none" stroke="#fff" stroke-opacity=".025"/></pattern><rect width="100%" height="100%" fill="url(#base)"/><rect width="100%" height="100%" fill="url(#grid)"/>`,
     meadow: `<linearGradient id="base" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#193246"/><stop offset=".58" stop-color="#254d50"/><stop offset="1" stop-color="#14271c"/></linearGradient><radialGradient id="sun"><stop stop-color="#f4efb2" stop-opacity=".25"/><stop offset="1" stop-color="#f4efb2" stop-opacity="0"/></radialGradient><rect width="100%" height="100%" fill="url(#base)"/><circle cx="${width * .76}" cy="${height * .18}" r="420" fill="url(#sun)"/>`,
+    cinematic: `<linearGradient id="base" x1="0" y1="1" x2="1" y2="0"><stop stop-color="#030405"/><stop offset=".55" stop-color="#101417"/><stop offset="1" stop-color="#252b2d"/></linearGradient><radialGradient id="beam"><stop stop-color="#c7d1c2" stop-opacity=".13"/><stop offset="1" stop-color="#c7d1c2" stop-opacity="0"/></radialGradient><rect width="100%" height="100%" fill="url(#base)"/><ellipse cx="${width * .78}" cy="${height * .18}" rx="520" ry="900" fill="url(#beam)" transform="rotate(22 ${width * .78} ${height * .18})"/>`,
+    concrete: `<linearGradient id="base" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#252728"/><stop offset=".5" stop-color="#111314"/><stop offset="1" stop-color="#292b2b"/></linearGradient><pattern id="cuts" width="190" height="190" patternUnits="userSpaceOnUse" patternTransform="rotate(-13)"><path d="M190 0H0V190" fill="none" stroke="#fff" stroke-opacity=".025" stroke-width="2"/></pattern><rect width="100%" height="100%" fill="url(#base)"/><rect width="100%" height="100%" fill="url(#cuts)"/>`,
+    afterglow: `<linearGradient id="base" x1="0" y1="1" x2="1" y2="0"><stop stop-color="#09080e"/><stop offset=".55" stop-color="#24151d"/><stop offset="1" stop-color="#6d382b"/></linearGradient><radialGradient id="sunset"><stop stop-color="#ffad73" stop-opacity=".28"/><stop offset="1" stop-color="#ffad73" stop-opacity="0"/></radialGradient><rect width="100%" height="100%" fill="url(#base)"/><circle cx="${width * .78}" cy="${height * .22}" r="520" fill="url(#sunset)"/>`,
+    signal: `<linearGradient id="base" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#0b0d0e"/><stop offset="1" stop-color="#020303"/></linearGradient><radialGradient id="signalGlow"><stop stop-color="#d9ff3f" stop-opacity=".16"/><stop offset="1" stop-color="#d9ff3f" stop-opacity="0"/></radialGradient><rect width="100%" height="100%" fill="url(#base)"/><circle cx="${width * .12}" cy="${height * .78}" r="540" fill="url(#signalGlow)"/><path d="M${width * .78} 0V${height}" stroke="#d9ff3f" stroke-opacity=".055" stroke-width="2"/>`,
   }
 
   return themes[template] ?? themes.midnight
@@ -77,6 +81,9 @@ function backgroundSvg(post, width, height, design) {
   const topY = post.storyPromotion ? 165 : 105
   const bottomY = post.storyPromotion ? height - 170 : height - 70
   return Buffer.from(`<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">${themeSvg(design.template, width, height)}
+    <filter id="filmGrain"><feTurbulence baseFrequency=".7" numOctaves="3" stitchTiles="stitch"/><feColorMatrix values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 .025 0"/></filter>
+    <radialGradient id="vignette"><stop offset=".45" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".3"/></radialGradient>
+    <rect width="100%" height="100%" filter="url(#filmGrain)" opacity=".45"/><rect width="100%" height="100%" fill="url(#vignette)"/>
     <rect width="100%" height="100%" fill="#000" opacity="${design.overlayOpacity / 100}"/>
     <text x="90" y="${topY}" fill="${light ? '#4f4a43' : '#8b9096'}" font-family="sans-serif" font-size="18" font-weight="700" letter-spacing="${post.storyPromotion ? 4 : 7}">${topLabel}</text>
     <text x="90" y="${bottomY}" fill="${light ? '#5e5850' : '#73787e'}" font-family="sans-serif" font-size="20" font-weight="${post.storyPromotion ? 700 : 400}" letter-spacing="${post.storyPromotion ? 2 : 0}">${bottomLabel}</text>
@@ -120,6 +127,52 @@ async function textOverlay(post, width, height, design) {
     { input: textBuffer, left: 90, top: y },
     { input: accent, left: accentX, top: Math.min(height - 140, y + textHeight + 34) },
   ]).png().toBuffer()
+}
+
+async function growthOverlay(post, width, height, design, kind) {
+  const growth = design.growth ?? {}
+  const text = kind === 'hook'
+    ? growth.hook || 'A QUIET REMINDER FOR TODAY'
+    : growth.cta || 'KEEP MOVING FORWARD · @SILENTFORWARD'
+  const light = design.template === 'paper'
+  const textColor = light ? '#171714' : '#f7f7f2'
+  const labelColor = light ? '#605b52' : '#8b9096'
+  const align = kind === 'hook' ? 'left' : 'center'
+  const fontSize = kind === 'hook' ? 66 : 54
+  const contentWidth = width - 180
+  const textBuffer = await sharp({
+    text: {
+      text: `<span foreground="${textColor}" font_weight="800" letter_spacing="${kind === 'hook' ? 1450 : 650}">${escapeXml(text.toUpperCase())}</span>`,
+      font: `Inter ${fontSize}`,
+      fontfile: fonts.sans.file,
+      width: contentWidth,
+      align,
+      spacing: 8,
+      wrap: 'word-char',
+      rgba: true,
+    },
+  }).png().toBuffer()
+  const metadata = await sharp(textBuffer).metadata()
+  const textHeight = metadata.height ?? 180
+  const top = Math.round((height - textHeight) / 2)
+  const accent = await sharp({ create: { width: kind === 'hook' ? 120 : 70, height: 9, channels: 4, background: normalizeAccent(post.accent) } }).png().toBuffer()
+  const label = await sharp({
+    text: {
+      text: `<span foreground="${labelColor}" font_weight="700" letter_spacing="2300">${kind === 'hook' ? 'SILENT NOTE' : 'SILENT FORWARD'}</span>`,
+      font: 'Inter 17',
+      fontfile: fonts.sans.file,
+      width: contentWidth,
+      align,
+      rgba: true,
+    },
+  }).png().toBuffer()
+  const accentLeft = kind === 'hook' ? 90 : Math.round((width - 70) / 2)
+  return sharp({ create: { width, height, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } })
+    .composite([
+      { input: label, left: 90, top: Math.max(230, top - 95) },
+      { input: textBuffer, left: 90, top },
+      { input: accent, left: accentLeft, top: Math.min(height - 230, top + textHeight + 34) },
+    ]).png().toBuffer()
 }
 
 export async function generateImage(post, targetPath, layer = 'complete') {
@@ -182,17 +235,25 @@ export async function generateMedia(post, mediaDirectory) {
   const design = normalizeDesign(post.design, post.format)
   const backgroundPath = path.join(mediaDirectory, `${post.id}-background.png`)
   const textPath = path.join(mediaDirectory, `${post.id}-text.png`)
+  const hookPath = path.join(mediaDirectory, `${post.id}-hook.png`)
+  const ctaPath = path.join(mediaDirectory, `${post.id}-cta.png`)
   const videoPath = path.join(mediaDirectory, `${post.id}.mp4`)
   await generateImage(post, backgroundPath, 'background')
   await generateImage(post, textPath, 'text')
+  await sharp(await growthOverlay(post, 1080, 1920, design, 'hook')).toFile(hookPath)
+  await sharp(await growthOverlay(post, 1080, 1920, design, 'cta')).toFile(ctaPath)
 
-  const filter = `[0:v]${backgroundFilter(design.animation, 1080, 1920, design.duration)},format=yuv420p[bg];[1:v]format=rgba[text];[bg][text]overlay=0:0:shortest=1,format=yuv420p[v];[2:a]afade=t=in:st=0:duration=0.5,afade=t=out:st=${Math.max(0, design.duration - 1)}:duration=1,volume=${design.musicVolume / 100}[a]`
+  const hookEnd = Math.min(1.35, design.duration * .2)
+  const ctaStart = Math.max(hookEnd + 2.8, design.duration - 1.2)
+  const filter = `[0:v]${backgroundFilter(design.animation, 1080, 1920, design.duration)},format=yuv420p[bg];[1:v]format=rgba[quote];[2:v]format=rgba[hook];[3:v]format=rgba[cta];[bg][hook]overlay=0:0:enable='between(t,0,${hookEnd})'[stage1];[stage1][quote]overlay=0:0:enable='between(t,${Math.max(0, hookEnd - .1)},${Math.min(design.duration, ctaStart + .1)})'[stage2];[stage2][cta]overlay=0:0:enable='gte(t,${ctaStart})',format=yuv420p[v];[4:a]afade=t=in:st=0:duration=0.5,afade=t=out:st=${Math.max(0, design.duration - 1)}:duration=1,volume=${design.musicVolume / 100}[a]`
 
   try {
     await new Promise((resolve, reject) => {
       const child = spawn(ffmpegPath, [
         '-y', '-loop', '1', '-i', backgroundPath,
         '-loop', '1', '-i', textPath,
+        '-loop', '1', '-i', hookPath,
+        '-loop', '1', '-i', ctaPath,
         '-f', 'lavfi', '-i', audioSource(design.music, design.duration),
         '-t', String(design.duration),
         '-filter_complex', filter,
@@ -206,7 +267,7 @@ export async function generateMedia(post, mediaDirectory) {
       child.on('close', (code) => code === 0 ? resolve() : reject(new Error(`Generarea video a eșuat: ${error.slice(-700)}`)))
     })
   } finally {
-    await Promise.all([backgroundPath, textPath].map((file) => unlink(file).catch(() => {})))
+    await Promise.all([backgroundPath, textPath, hookPath, ctaPath].map((file) => unlink(file).catch(() => {})))
   }
 
   return videoPath

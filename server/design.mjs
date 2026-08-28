@@ -1,5 +1,5 @@
 export const DESIGN_OPTIONS = {
-  templates: ['midnight', 'aurora', 'ember', 'ocean', 'monochrome', 'paper', 'forest', 'dusk', 'sandstone', 'neon', 'obsidian', 'meadow'],
+  templates: ['midnight', 'aurora', 'ember', 'ocean', 'monochrome', 'paper', 'forest', 'dusk', 'sandstone', 'neon', 'obsidian', 'meadow', 'cinematic', 'concrete', 'afterglow', 'signal'],
   fonts: ['sans', 'serif', 'mono'],
   textPositions: ['top', 'center', 'bottom'],
   textAlignments: ['left', 'center', 'right'],
@@ -61,6 +61,36 @@ function normalizeStoryState(value) {
   }
 }
 
+function normalizeGrowthState(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null
+  return {
+    version: String(value.version ?? '2026.1').slice(0, 20),
+    recipe: sanitizeText(value.recipe, 60),
+    pillar: sanitizeText(value.pillar, 40),
+    hook: sanitizeText(value.hook, 100),
+    cta: sanitizeText(value.cta, 120),
+    objective: ['share', 'save', 'retain', 'follow'].includes(value.objective) ? value.objective : 'share',
+    shareabilityScore: numberBetween(value.shareabilityScore, 0, 100, 50),
+    selection: value.selection === 'exploit' ? 'exploit' : 'explore',
+  }
+}
+
+function normalizePerformanceState(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null
+  return {
+    checkedAt: value.checkedAt ? String(value.checkedAt) : null,
+    views: numberBetween(value.views, 0, 1_000_000_000, 0),
+    reach: numberBetween(value.reach, 0, 1_000_000_000, 0),
+    likes: numberBetween(value.likes, 0, 1_000_000_000, 0),
+    comments: numberBetween(value.comments, 0, 1_000_000_000, 0),
+    shares: numberBetween(value.shares, 0, 1_000_000_000, 0),
+    saved: numberBetween(value.saved, 0, 1_000_000_000, 0),
+    averageWatchTimeMs: numberBetween(value.averageWatchTimeMs, 0, 3_600_000, 0),
+    score: numberBetween(value.score, 0, 100, 50),
+    confidence: numberBetween(value.confidence, 0, 100, 0),
+  }
+}
+
 export function normalizeDesign(value = {}, format = 'post') {
   const input = value && typeof value === 'object' && !Array.isArray(value) ? value : {}
   const defaults = {
@@ -83,6 +113,8 @@ export function normalizeDesign(value = {}, format = 'post') {
     lineHeight: numberBetween(input.lineHeight, 90, 160, defaults.lineHeight),
     overlayOpacity: numberBetween(input.overlayOpacity, 0, 65, defaults.overlayOpacity),
     story: normalizeStoryState(input.story),
+    growth: normalizeGrowthState(input.growth),
+    performance: normalizePerformanceState(input.performance),
   }
 }
 

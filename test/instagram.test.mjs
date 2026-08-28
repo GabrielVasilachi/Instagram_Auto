@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { publishStoryToInstagram, publishToInstagram } from '../server/instagram.mjs'
+import { fetchMediaInsights, publishStoryToInstagram, publishToInstagram } from '../server/instagram.mjs'
 
 test('image containers reach FINISHED before media_publish is called', async () => {
   const previousFetch = globalThis.fetch
@@ -34,6 +34,31 @@ test('image containers reach FINISHED before media_publish is called', async () 
     globalThis.fetch = previousFetch
     process.env.INSTAGRAM_ACCESS_TOKEN = previousToken
     process.env.INSTAGRAM_ACCOUNT_ID = previousAccount
+  }
+})
+
+test('media insights are normalized into growth metrics', async () => {
+  const previousFetch = globalThis.fetch
+  const previousToken = process.env.INSTAGRAM_ACCESS_TOKEN
+  process.env.INSTAGRAM_ACCESS_TOKEN = 'test-token'
+  globalThis.fetch = async () => new Response(JSON.stringify({
+    data: [
+      { name: 'views', values: [{ value: 120 }] },
+      { name: 'reach', values: [{ value: 100 }] },
+      { name: 'shares', values: [{ value: 7 }] },
+      { name: 'saved', values: [{ value: 9 }] },
+      { name: 'ig_reels_avg_watch_time', values: [{ value: 4300 }] },
+    ],
+  }), { status: 200, headers: { 'content-type': 'application/json' } })
+  try {
+    const metrics = await fetchMediaInsights({ format: 'reel', instagramMediaId: 'media-1' })
+    assert.equal(metrics.views, 120)
+    assert.equal(metrics.shares, 7)
+    assert.equal(metrics.saved, 9)
+    assert.equal(metrics.averageWatchTimeMs, 4300)
+  } finally {
+    globalThis.fetch = previousFetch
+    process.env.INSTAGRAM_ACCESS_TOKEN = previousToken
   }
 })
 

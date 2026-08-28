@@ -38,22 +38,34 @@ const callsToAction = [
   'Follow @silentforward and build quietly with us.',
 ]
 
-const hashtagSets = [
-  '#motivation #discipline #mindset #selfimprovement #consistency #focus #growthmindset #dailyquotes #silentforward',
-  '#motivationalreels #reelsmotivation #disciplineequalsfreedom #mentalstrength #keepgoing #personalgrowth #silentforward',
-  '#deepwork #focusmode #productivity #habits #selfmastery #quietconfidence #purpose #silentforward',
-  '#motivationdaily #mindsetshift #resilience #positivehabits #goals #successmindset #progress #silentforward',
-  '#selfrespect #standards #confidence #innerstrength #courage #bettereveryday #mindsetmatters #silentforward',
-  '#consistencyiskey #hardwork #dailyfocus #momentum #growth #determination #nevergiveup #silentforward',
-  '#stoicmindset #calmstrength #discipline #focusonyourself #levelup #mentalclarity #silentforward',
-  '#morningmotivation #dailyinspiration #goodhabits #intentionality #selfgrowth #forward #silentforward',
-]
+const pillarContext = {
+  discipline: 'Discipline is not intensity. It is the quiet decision to keep one promise today.',
+  focus: 'Protecting your attention is one of the most practical forms of self-respect.',
+  resilience: 'A difficult season can slow the result without erasing the person you are becoming.',
+  'self-respect': 'The standard you accept privately becomes the life you experience publicly.',
+  courage: 'Courage usually looks like one useful action taken while fear is still present.',
+  growth: 'Progress often becomes visible long after the daily choices that created it.',
+  'quiet-confidence': 'Real confidence does not need constant proof, noise or permission.',
+  purpose: 'Direction creates a calmer kind of momentum than pressure ever can.',
+}
 
-export function captionFor(quote, format, cursor) {
-  const hook = hooks[cursor % hooks.length]
+const pillarHashtags = {
+  discipline: '#discipline #consistency #dailyhabits #selfmastery #motivation #silentforward',
+  focus: '#focus #deepwork #mentalclarity #productivity #mindset #silentforward',
+  resilience: '#resilience #keepgoing #mentalstrength #personalgrowth #motivation #silentforward',
+  'self-respect': '#selfrespect #selfworth #boundaries #confidence #mindset #silentforward',
+  courage: '#courage #fearlessmindset #takeaction #growthmindset #motivation #silentforward',
+  growth: '#personalgrowth #progress #growthmindset #betterself #motivation #silentforward',
+  'quiet-confidence': '#quietconfidence #confidence #selfbelief #innerstrength #mindset #silentforward',
+  purpose: '#purpose #direction #intentionality #focus #personaldevelopment #silentforward',
+}
+
+export function captionFor(quote, format, cursor, growth = {}) {
+  const hook = growth.hook || hooks[cursor % hooks.length]
   const closer = closers[Math.floor(cursor / 2) % closers.length]
-  const callToAction = callsToAction[Math.floor(cursor / 3) % callsToAction.length]
-  const tagOffset = format === 'reel' ? 2 : 0
-  const hashtags = hashtagSets[(cursor + tagOffset) % hashtagSets.length]
-  return `${hook}\n\n${quote}\n\n${closer} ${callToAction}\n\n${hashtags}`
+  const callToAction = growth.cta || callsToAction[Math.floor(cursor / 3) % callsToAction.length]
+  const pillar = growth.pillar || 'growth'
+  const context = pillarContext[pillar] || pillarContext.growth
+  const hashtags = pillarHashtags[pillar] || pillarHashtags.growth
+  return `${hook}\n\n${quote}\n\n${context}\n\n${closer}\n${callToAction}\n\n${hashtags}`
 }

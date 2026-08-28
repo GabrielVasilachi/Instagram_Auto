@@ -35,6 +35,23 @@ Every successful feed publication also creates a dedicated 9:16 promotional Stor
 has its own persisted state and retry schedule, so a temporary Story error can never cause the Reel
 or feed post to be published twice.
 
+## Growth engine
+
+Autopilot uses original content rather than reposting other creators. Every Reel follows a short
+three-act structure: an immediate hook, the core message, and a save/share/follow prompt. Captions
+are matched to the message pillar and use a small set of relevant hashtags instead of generic spam.
+
+After publication, the remote worker reads Instagram Insights (views, reach, average watch time,
+shares, saves, likes, and comments) and stores a normalized performance score with the post. Future
+content uses a controlled explore/exploit strategy: 75% of eligible slots reuse the strongest visual
+recipes and 25% test a different recipe. Low-reach results are confidence-weighted so one small post
+cannot distort the schedule. Historical posts are mapped to their nearest recipe, allowing the engine
+to learn before every item has the new growth metadata.
+
+The `Growth Lab` page exposes the measured signals and recipe ranking. Insights are refreshed by the
+one-minute worker, while the authenticated `POST /api/insights/refresh` endpoint can backfill up to
+five older publications during maintenance.
+
 ## Checks
 
 ```bash

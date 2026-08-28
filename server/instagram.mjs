@@ -46,3 +46,26 @@ export async function publishStoryToInstagram(publicUrl) {
   await waitForContainer(container.id)
   return instagramRequest(`${accountId}/media_publish`, { method: 'POST', parameters: { creation_id: container.id } })
 }
+
+export async function fetchMediaInsights(post) {
+  if (!post?.instagramMediaId) throw new Error('Media ID lipsește pentru Insights.')
+  const metricNames = post.format === 'reel'
+    ? ['views', 'reach', 'likes', 'comments', 'shares', 'saved', 'ig_reels_avg_watch_time']
+    : ['views', 'reach', 'likes', 'comments', 'shares', 'saved']
+  const result = await instagramRequest(`${post.instagramMediaId}/insights`, {
+    parameters: { metric: metricNames.join(',') },
+  })
+  const values = Object.fromEntries((result.data ?? []).map((item) => [
+    item.name,
+    Number(item.values?.[0]?.value ?? item.total_value?.value ?? 0) || 0,
+  ]))
+  return {
+    views: values.views ?? 0,
+    reach: values.reach ?? 0,
+    likes: values.likes ?? 0,
+    comments: values.comments ?? 0,
+    shares: values.shares ?? 0,
+    saved: values.saved ?? 0,
+    averageWatchTimeMs: values.ig_reels_avg_watch_time ?? 0,
+  }
+}
