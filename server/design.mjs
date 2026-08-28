@@ -46,6 +46,21 @@ export function normalizeAccent(value) {
   return /^#[0-9a-f]{6}$/i.test(String(value ?? '')) ? String(value).toLowerCase() : '#d9ff3f'
 }
 
+function normalizeStoryState(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null
+  const status = ['pending', 'publishing', 'published', 'failed'].includes(value.status) ? value.status : null
+  if (!status) return null
+  return {
+    status,
+    mediaUrl: String(value.mediaUrl ?? '').slice(0, 2000),
+    instagramMediaId: String(value.instagramMediaId ?? '').slice(0, 200),
+    publishedAt: value.publishedAt ? String(value.publishedAt) : null,
+    error: sanitizeText(value.error, 1000),
+    retryCount: numberBetween(value.retryCount, 0, 5, 0),
+    nextAttemptAt: value.nextAttemptAt ? String(value.nextAttemptAt) : null,
+  }
+}
+
 export function normalizeDesign(value = {}, format = 'post') {
   const input = value && typeof value === 'object' && !Array.isArray(value) ? value : {}
   const defaults = {
@@ -67,6 +82,7 @@ export function normalizeDesign(value = {}, format = 'post') {
     letterSpacing: numberBetween(input.letterSpacing, -2, 12, defaults.letterSpacing),
     lineHeight: numberBetween(input.lineHeight, 90, 160, defaults.lineHeight),
     overlayOpacity: numberBetween(input.overlayOpacity, 0, 65, defaults.overlayOpacity),
+    story: normalizeStoryState(input.story),
   }
 }
 

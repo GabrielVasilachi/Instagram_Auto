@@ -72,10 +72,14 @@ function themeSvg(template, width, height) {
 
 function backgroundSvg(post, width, height, design) {
   const light = design.template === 'paper'
+  const topLabel = post.storyPromotion ? `NEW ${post.storyPromotion} · SILENT FORWARD` : 'SILENT FORWARD'
+  const bottomLabel = post.storyPromotion ? 'WATCH NOW ON PROFILE · @silentforward' : '@silentforward'
+  const topY = post.storyPromotion ? 165 : 105
+  const bottomY = post.storyPromotion ? height - 170 : height - 70
   return Buffer.from(`<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">${themeSvg(design.template, width, height)}
     <rect width="100%" height="100%" fill="#000" opacity="${design.overlayOpacity / 100}"/>
-    <text x="90" y="105" fill="${light ? '#4f4a43' : '#8b9096'}" font-family="sans-serif" font-size="18" font-weight="700" letter-spacing="7">SILENT FORWARD</text>
-    <text x="90" y="${height - 70}" fill="${light ? '#5e5850' : '#73787e'}" font-family="sans-serif" font-size="20">@silentforward</text>
+    <text x="90" y="${topY}" fill="${light ? '#4f4a43' : '#8b9096'}" font-family="sans-serif" font-size="18" font-weight="700" letter-spacing="${post.storyPromotion ? 4 : 7}">${topLabel}</text>
+    <text x="90" y="${bottomY}" fill="${light ? '#5e5850' : '#73787e'}" font-family="sans-serif" font-size="20" font-weight="${post.storyPromotion ? 700 : 400}" letter-spacing="${post.storyPromotion ? 2 : 0}">${bottomLabel}</text>
   </svg>`)
 }
 
@@ -206,6 +210,23 @@ export async function generateMedia(post, mediaDirectory) {
   }
 
   return videoPath
+}
+
+export async function generateStoryPromotion(post, mediaDirectory) {
+  const storyPost = {
+    ...post,
+    id: `${post.id}-story`,
+    format: 'reel',
+    storyPromotion: post.format === 'reel' ? 'REEL' : 'POST',
+    design: {
+      ...post.design,
+      duration: Math.min(10, Math.max(6, Number(post.design?.duration) || 8)),
+    },
+  }
+  return {
+    filePath: await generateMedia(storyPost, mediaDirectory),
+    uploadPost: storyPost,
+  }
 }
 
 export function mediaDimensions(format) {

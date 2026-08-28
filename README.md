@@ -31,6 +31,10 @@ default so opening the dashboard cannot duplicate remote publishing. Only set
 The default editorial cadence is three Reels per day (`09:00`, `15:30`, `21:00`) and two static
 posts per week (Tuesday and Saturday at `11:00`) in the configured timezone.
 
+Every successful feed publication also creates a dedicated 9:16 promotional Story. Story delivery
+has its own persisted state and retry schedule, so a temporary Story error can never cause the Reel
+or feed post to be published twice.
+
 ## Checks
 
 ```bash

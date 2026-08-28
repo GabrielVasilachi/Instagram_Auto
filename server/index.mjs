@@ -10,8 +10,8 @@ import { cloudinaryConfigured, uploadToCloudinary } from './cloudinary.mjs'
 import { beginWorkerRun, claimPostForPublishing, claimWorkerLease, deletePost, deletePosts, finishWorkerRun, insertPost, insertPosts, loadDatabase, loadPost, loadWorkerState, releaseExpiredClaims, releaseWorkerLease, savePost, updateSettings } from './database.mjs'
 import { captionFor, POST_TIME, POST_WEEKDAYS, REEL_TIMES } from './content-plan.mjs'
 import { DESIGN_OPTIONS, normalizeAccent, normalizeDesign, randomizedDesign, sanitizeText } from './design.mjs'
-import { instagramConfigured, instagramRequest, publishToInstagram } from './instagram.mjs'
-import { generateImage, generateMedia } from './media.mjs'
+import { instagramConfigured, instagramRequest, publishStoryToInstagram, publishToInstagram } from './instagram.mjs'
+import { generateImage, generateMedia, generateStoryPromotion } from './media.mjs'
 import { validateWorkerEnvironment } from './preflight.mjs'
 import { isRetryablePublishError, retryDelayMs, withRemoteRetries } from './retry.mjs'
 import { scheduledSlots } from './time.mjs'
@@ -178,12 +178,15 @@ app.get('/api/dashboard', async (_request, response) => {
       reelTimes: REEL_TIMES,
       postsPerWeek: POST_WEEKDAYS.length,
       postWeekdays: POST_WEEKDAYS,
+      storyAfterEveryPublication: true,
     },
     posts: database.posts,
     stats: {
       scheduled: database.posts.filter((post) => post.status === 'scheduled').length,
       published: database.posts.filter((post) => post.status === 'published').length,
       failed: database.posts.filter((post) => post.status === 'failed').length,
+      storiesPublished: database.posts.filter((post) => post.design?.story?.status === 'published').length,
+      storiesFailed: database.posts.filter((post) => post.design?.story?.status === 'failed').length,
     },
   })
 })
@@ -366,23 +369,26 @@ async function publishPost(postId) {
   if (!post) throw new Error('Postarea este deja procesată de un alt job.')
   const attempt = (post.retryCount ?? 0) + 1
   let filePath
+  let result
   try {
     await mkdir(mediaDirectory, { recursive: true })
     filePath = await generateMedia(post, mediaDirectory)
     const publicUrl = await uploadToCloudinary(filePath, post)
     const published = await publishToInstagram(post, publicUrl)
-    const result = await savePost({
+    result = await savePost({
       ...post,
       status: 'published',
       mediaUrl: publicUrl,
       instagramMediaId: published.id,
       publishedAt: new Date().toISOString(),
+      design: {
+        ...post.design,
+        story: { status: 'pending', retryCount: 0, nextAttemptAt: null },
+      },
       error: '',
       retryCount: 0,
       nextAttemptAt: null,
     })
-    await fillQueue()
-    return result
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Publicarea a eșuat.'
     const canRetry = isRetryablePublishError(error) && attempt < 5
@@ -397,6 +403,94 @@ async function publishPost(postId) {
   } finally {
     if (filePath) await unlink(filePath).catch(() => {})
   }
+
+  try {
+    result = await publishStoryPromotion(result)
+  } catch (error) {
+    console.error(`[story] ${error instanceof Error ? error.message : error}`)
+    result = await loadPost(result.id)
+  }
+  await fillQueue()
+  return result
+}
+
+async function publishStoryPromotion(post) {
+  const current = post.design?.story
+  if (current?.status === 'published') return post
+  const attempt = (current?.retryCount ?? 0) + 1
+  const leaseUntil = new Date(Date.now() + 15 * 60_000).toISOString()
+  let filePath
+
+  const publishing = await savePost({
+    ...post,
+    design: {
+      ...post.design,
+      story: { ...current, status: 'publishing', error: '', retryCount: attempt, nextAttemptAt: leaseUntil },
+    },
+  })
+
+  try {
+    await mkdir(mediaDirectory, { recursive: true })
+    const promotion = await generateStoryPromotion(publishing, mediaDirectory)
+    filePath = promotion.filePath
+    const publicUrl = await uploadToCloudinary(filePath, promotion.uploadPost)
+    const published = await publishStoryToInstagram(publicUrl)
+    return await savePost({
+      ...publishing,
+      design: {
+        ...publishing.design,
+        story: {
+          status: 'published',
+          mediaUrl: publicUrl,
+          instagramMediaId: published.id,
+          publishedAt: new Date().toISOString(),
+          error: '',
+          retryCount: attempt,
+          nextAttemptAt: null,
+        },
+      },
+    })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Story-ul nu a putut fi publicat.'
+    await savePost({
+      ...publishing,
+      design: {
+        ...publishing.design,
+        story: {
+          ...publishing.design.story,
+          status: 'failed',
+          error: message,
+          retryCount: attempt,
+          nextAttemptAt: attempt < 5 ? new Date(Date.now() + retryDelayMs(attempt)).toISOString() : null,
+        },
+      },
+    })
+    throw error
+  } finally {
+    if (filePath) await unlink(filePath).catch(() => {})
+  }
+}
+
+async function publishDueStories(limit = 1) {
+  const database = await loadDatabase()
+  const now = new Date()
+  const due = database.posts
+    .filter((post) => post.status === 'published'
+      && ['pending', 'failed', 'publishing'].includes(post.design?.story?.status)
+      && (post.design.story.retryCount ?? 0) < 5
+      && (!post.design.story.nextAttemptAt || new Date(post.design.story.nextAttemptAt) <= now))
+    .sort((left, right) => new Date(left.publishedAt) - new Date(right.publishedAt))
+    .slice(0, limit)
+  const results = []
+  for (const post of due) {
+    try {
+      const published = await publishStoryPromotion(post)
+      results.push({ id: post.id, status: published.design.story.status, instagramMediaId: published.design.story.instagramMediaId })
+    } catch (error) {
+      results.push({ id: post.id, status: 'failed', error: error instanceof Error ? error.message : String(error) })
+    }
+  }
+  return results
 }
 
 app.post('/api/posts/:id/publish', async (request, response) => {
@@ -479,12 +573,14 @@ async function runRemoteWorker(options = {}) {
     runStarted = true
     const additions = await fillQueue()
     const published = await publishDuePosts(1)
+    const stories = await publishDueStories(1)
     const result = {
       ok: true,
       skipped: false,
       checkedAt,
       queueAdditions: additions.length,
       published: published.map((post) => ({ id: post.id, format: post.format, instagramMediaId: post.instagramMediaId })),
+      stories,
     }
     await finishWorkerRun(runId, { status: 'succeeded', result })
     return result
@@ -534,5 +630,5 @@ if (!process.env.VERCEL && process.env.NODE_ENV !== 'test') {
   app.listen(port, '0.0.0.0', () => console.log(`Silent Forward API: http://0.0.0.0:${port}`))
 }
 
-export { fillQueue, publishDuePosts, publishPost, runRemoteWorker }
+export { fillQueue, publishDuePosts, publishDueStories, publishPost, publishStoryPromotion, runRemoteWorker }
 export default app

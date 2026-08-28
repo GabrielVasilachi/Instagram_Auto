@@ -22,3 +22,17 @@ test('advanced typography and overlay values are constrained', () => {
   assert.equal(design.lineHeight, 90)
   assert.equal(design.overlayOpacity, 65)
 })
+
+test('story publishing state survives design normalization safely', () => {
+  const design = normalizeDesign({
+    story: {
+      status: 'failed',
+      error: 'Temporary API error',
+      retryCount: 2,
+      nextAttemptAt: '2026-08-28T10:00:00.000Z',
+    },
+  }, 'reel')
+  assert.equal(design.story.status, 'failed')
+  assert.equal(design.story.retryCount, 2)
+  assert.equal(design.story.error, 'Temporary API error')
+})

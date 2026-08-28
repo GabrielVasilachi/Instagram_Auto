@@ -35,3 +35,14 @@ export async function publishToInstagram(post, publicUrl) {
   await waitForContainer(container.id)
   return instagramRequest(`${accountId}/media_publish`, { method: 'POST', parameters: { creation_id: container.id } })
 }
+
+export async function publishStoryToInstagram(publicUrl) {
+  const accountId = process.env.INSTAGRAM_ACCOUNT_ID
+  if (!accountId) throw new Error('Instagram Account ID lipsește.')
+  const container = await instagramRequest(`${accountId}/media`, {
+    method: 'POST',
+    parameters: { media_type: 'STORIES', video_url: publicUrl },
+  })
+  await waitForContainer(container.id)
+  return instagramRequest(`${accountId}/media_publish`, { method: 'POST', parameters: { creation_id: container.id } })
+}
