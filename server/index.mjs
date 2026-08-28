@@ -501,6 +501,23 @@ app.post('/api/posts/:id/publish', async (request, response) => {
   }
 })
 
+app.post('/api/posts/:id/story/publish', async (request, response) => {
+  const owner = randomUUID()
+  const acquired = await claimWorkerLease('instagram-publisher', owner, 240)
+  if (!acquired) return response.status(409).json({ error: 'Workerul publică deja. Reîncearcă în câteva secunde.' })
+  try {
+    const post = await loadPost(request.params.id)
+    if (!post) return response.status(404).json({ error: 'Postarea nu există.' })
+    if (post.status !== 'published') return response.status(409).json({ error: 'Story-ul promo poate fi creat după publicarea materialului principal.' })
+    response.json(await publishStoryPromotion(post))
+  } catch (error) {
+    response.status(400).json({ error: error instanceof Error ? error.message : 'Story-ul nu a putut fi publicat.' })
+  } finally {
+    await releaseWorkerLease('instagram-publisher', owner)
+      .catch((error) => console.error('[story-lease]', error instanceof Error ? error.message : error))
+  }
+})
+
 app.delete('/api/posts/:id', async (request, response) => {
   const post = await loadPost(request.params.id)
   if (!post) return response.status(404).json({ error: 'Postarea nu există.' })
