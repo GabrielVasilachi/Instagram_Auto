@@ -115,6 +115,12 @@ export function normalizeDesign(value = {}, format = 'post') {
     story: normalizeStoryState(input.story),
     growth: normalizeGrowthState(input.growth),
     performance: normalizePerformanceState(input.performance),
+    editorMedia: input.editorMedia && typeof input.editorMedia.url === 'string' ? {
+      url: input.editorMedia.url.slice(0, 2000),
+      width: numberBetween(input.editorMedia.width, 1, 4096, 1080),
+      height: numberBetween(input.editorMedia.height, 1, 4096, 1920),
+      duration: numberBetween(input.editorMedia.duration, 0, 180, 0),
+    } : null,
   }
 }
 

@@ -250,7 +250,7 @@ export async function generateMedia(post, mediaDirectory) {
   try {
     await new Promise((resolve, reject) => {
       const child = spawn(ffmpegPath, [
-        '-y', '-loop', '1', '-i', backgroundPath,
+        '-y', '-threads', '2', '-filter_complex_threads', '1', '-loop', '1', '-i', backgroundPath,
         '-loop', '1', '-i', textPath,
         '-loop', '1', '-i', hookPath,
         '-loop', '1', '-i', ctaPath,

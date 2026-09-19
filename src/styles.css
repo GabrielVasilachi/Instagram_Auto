@@ -364,3 +364,6 @@ body { background: radial-gradient(circle at 72% -12%, rgba(91,111,40,.18), tran
   .library-hero { align-items: flex-start; flex-direction: column; }
   .growth-brief, .growth-signals { grid-template-columns: 1fr; }
 }
+
+.video-editor-nav { display: flex; align-items: center; gap: 10px; color: #d9ff3f !important; }
+.video-editor-nav small { margin-left: auto; font-size: 8px; border: 1px solid #d9ff3f44; border-radius: 4px; padding: 3px 5px; }
