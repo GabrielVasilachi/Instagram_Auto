@@ -376,3 +376,7 @@ body { background: radial-gradient(circle at 72% -12%, rgba(91,111,40,.18), tran
 .post-preview.reel .preview-mark { position:absolute; left:8.3%; font-size:6px; }
 .post-preview.reel > small { position:absolute; left:8.3%; }
 .post-preview.reel .preview-message p { line-height:inherit; letter-spacing:inherit; }
+.soundscape-preview { grid-column:1 / -1; display:grid; gap:8px; min-width:0; padding:12px; border:1px solid #303337; border-radius:12px; background:#131517; }
+.soundscape-preview > span { color:#d9dde1; font-size:12px; }
+.soundscape-preview audio { display:block; width:100%; height:38px; color-scheme:dark; }
+.soundscape-preview small { color:#a5abb3; font-size:12px; }

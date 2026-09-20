@@ -12,7 +12,7 @@ import { captionFor, POST_TIME, POST_WEEKDAYS, REEL_TIMES } from './content-plan
 import { DESIGN_OPTIONS, normalizeAccent, normalizeDesign, sanitizeText } from './design.mjs'
 import { calculatePerformanceScore, GROWTH_VERSION, growthDesignFor } from './growth-engine.mjs'
 import { fetchMediaInsights, instagramConfigured, instagramRequest, publishStoryToInstagram, publishToInstagram } from './instagram.mjs'
-import { generateImage, generateMedia, generateStoryPromotion } from './media.mjs'
+import { generateAudioPreview, generateImage, generateMedia, generateStoryPromotion } from './media.mjs'
 import { validateWorkerEnvironment } from './preflight.mjs'
 import { isRetryablePublishError, retryDelayMs, withRemoteRetries } from './retry.mjs'
 import { scheduledSlots } from './time.mjs'
@@ -122,6 +122,13 @@ app.post('/api/worker/run', async (request, response) => {
 })
 
 app.use('/api', requireAuthentication, validateOrigin)
+app.get('/api/soundscapes/:music/preview', async (request, response) => {
+  const music = request.params.music
+  if (!DESIGN_OPTIONS.music.includes(music) || music === 'silent') return response.status(400).json({ error: 'Selectează un soundscape cu audio.' })
+  const audio = await generateAudioPreview(music, mediaDirectory)
+  response.set('Cache-Control', 'private, max-age=86400').type('audio/mp4').send(audio)
+})
+
 app.use('/api/video-editor', editorRouter({ insertPost, loadPost }))
 
 function validTime(value) {

@@ -3,10 +3,10 @@ import { spawn } from 'node:child_process'
 import { planReel } from './reel-plan.mjs'
 import { selectAssets } from './reel-assets.mjs'
 import { randomUUID } from 'node:crypto'
-import { mkdir, unlink, rename } from 'node:fs/promises'
+import { mkdir, unlink, rename, readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { normalizeAccent, normalizeDesign, sanitizeText } from './design.mjs'
+import { DESIGN_OPTIONS, normalizeAccent, normalizeDesign, sanitizeText } from './design.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const fontDirectory = path.join(root, 'assets', 'fonts')
@@ -198,6 +198,30 @@ function runFfmpeg(args, timeout = 180_000) {
   })
 }
 
+const audioPreviewCache = new Map()
+
+function audioMix(duration, volume = 1) {
+  return `aformat=channel_layouts=stereo,loudnorm=I=-18:TP=-2:LRA=7,volume=${volume},alimiter=limit=0.89,afade=t=in:d=0.5,afade=t=out:st=${duration - .7}:d=0.7`
+}
+
+export async function generateAudioPreview(music, directory) {
+  if (!DESIGN_OPTIONS.music.includes(music) || music === 'silent') throw new Error('Soundscape invalid.')
+  // At most nine small audio buffers; concurrent listeners share a single render.
+  if (!audioPreviewCache.has(music)) {
+    const rendering = (async () => {
+      await mkdir(directory, { recursive: true })
+      const file = path.join(directory, `soundscape-${randomUUID()}.m4a`)
+      try {
+        await runFfmpeg(['-y', '-threads', '1', '-f', 'lavfi', '-i', audioSource(music, 8), '-t', '8', '-vn', '-af', audioMix(8), '-c:a', 'aac', '-b:a', '128k', '-ar', '48000', '-movflags', '+faststart', file], 30_000)
+        return await readFile(file)
+      } finally { await unlink(file).catch(() => {}) }
+    })()
+    audioPreviewCache.set(music, rendering)
+    rendering.catch(() => audioPreviewCache.delete(music))
+  }
+  return audioPreviewCache.get(music)
+}
+
 export async function validateReel(file) {
   // Decode both streams before any durable media reference is replaced.
   await runFfmpeg(['-v', 'error', '-xerror', '-i', file, '-map', '0:v:0', '-map', '0:a:0', '-f', 'null', '-'], 60_000)
@@ -252,7 +276,7 @@ export async function generateMedia(post, mediaDirectory) {
     const audioIndex = plan.scenes.length + 1 + inputOffset
     args.push(...(assets.audio ? ['-stream_loop', '-1', '-i', assets.audio] : ['-f', 'lavfi', '-i', audioSource(design.music, duration)]))
     filters.push(`[${previous}]fade=t=in:st=0:d=0.15,fade=t=out:st=${duration - .25}:d=0.25,format=yuv420p[v]`)
-    filters.push(`[${audioIndex}:a]aformat=channel_layouts=stereo,loudnorm=I=-18:TP=-2:LRA=7,volume=${design.musicVolume / 100},alimiter=limit=0.89,afade=t=in:d=0.5,afade=t=out:st=${duration - .7}:d=0.7[a]`)
+    filters.push(`[${audioIndex}:a]${audioMix(duration, design.musicVolume / 100)}[a]`)
     args.push('-t', String(duration), '-filter_complex', filters.join(';'), '-map', '[v]', '-map', '[a]', '-r', '30', '-c:v', 'libx264', '-threads', '2', '-preset', 'fast', '-crf', '21', '-maxrate', '6M', '-bufsize', '12M', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-b:a', '128k', '-ar', '48000', '-movflags', '+faststart', temporaryVideo)
     await runFfmpeg(args)
     await validateReel(temporaryVideo)
