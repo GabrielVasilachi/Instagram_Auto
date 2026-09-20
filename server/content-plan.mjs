@@ -61,11 +61,8 @@ const pillarHashtags = {
 }
 
 export function captionFor(quote, format, cursor, growth = {}) {
-  const hook = growth.hook || hooks[cursor % hooks.length]
-  const closer = closers[Math.floor(cursor / 2) % closers.length]
-  const callToAction = growth.cta || callsToAction[Math.floor(cursor / 3) % callsToAction.length]
   const pillar = growth.pillar || 'growth'
   const context = pillarContext[pillar] || pillarContext.growth
-  const hashtags = pillarHashtags[pillar] || pillarHashtags.growth
-  return `${hook}\n\n${quote}\n\n${context}\n\n${closer}\n${callToAction}\n\n${hashtags}`
+  const hashtags = (pillarHashtags[pillar] || pillarHashtags.growth).split(' ').slice(0, 2).join(' ')
+  return `${cursor % 2 === 0 ? context : closers[Math.floor(cursor / 2) % closers.length]}${cursor % 5 === 0 ? '\n\nRemember this.' : ''}\n\n${hashtags} #silentforward`
 }

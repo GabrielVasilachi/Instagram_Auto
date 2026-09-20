@@ -367,3 +367,12 @@ body { background: radial-gradient(circle at 72% -12%, rgba(91,111,40,.18), tran
 
 .video-editor-nav { display: flex; align-items: center; gap: 10px; color: #d9ff3f !important; }
 .video-editor-nav small { margin-left: auto; font-size: 8px; border: 1px solid #d9ff3f44; border-radius: 4px; padding: 3px 5px; }
+/* Match the generated Reel's readable area; leave room for Instagram controls. */
+.post-preview.reel .preview-message { width:72%; margin-left:11%; margin-right:17%; }
+.post-preview.reel .preview-mark { top:13.5%; }
+.post-preview.reel > small { bottom:20.8%; }
+.post-preview.theme-obsidian { background:#030304; }
+.post-preview.reel { padding:0; }
+.post-preview.reel .preview-mark { position:absolute; left:8.3%; font-size:6px; }
+.post-preview.reel > small { position:absolute; left:8.3%; }
+.post-preview.reel .preview-message p { line-height:inherit; letter-spacing:inherit; }

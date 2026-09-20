@@ -243,3 +243,20 @@ export async function deletePosts(ids) {
   const data = await databaseRequest('delete-posts', () => supabase.from('posts').delete().in('id', ids).select('id'))
   return data
 }
+
+export async function loadRefreshSnapshot(id) {
+  const raw = await databaseRequest('refresh-snapshot', () => supabase.from('posts').select('*').eq('id', id).maybeSingle())
+  return raw ? { raw, post: postFromDatabase(raw) } : null
+}
+
+export async function replaceRefreshedMedia(snapshot, updated) {
+  const old = snapshot.raw
+  let query = supabase.from('posts').update({
+    quote: updated.quote, caption: updated.caption, design: normalizeDesign(updated.design, 'reel'), media_url: updated.mediaUrl,
+  }).eq('id', old.id).eq('status', 'scheduled').eq('format', 'reel')
+    .eq('scheduled_for', old.scheduled_for).gt('scheduled_for', new Date().toISOString())
+    .eq('quote', old.quote).eq('accent', old.accent)
+  for (const key of ['caption', 'media_url', 'design']) query = old[key] == null ? query.is(key, null) : query.eq(key, typeof old[key] === 'object' ? JSON.stringify(old[key]) : old[key])
+  const row = await databaseRequest('replace-refreshed-media', () => query.select('*').maybeSingle())
+  return row ? postFromDatabase(row) : null
+}

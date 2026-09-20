@@ -1,6 +1,7 @@
+import { MOODS, moodFor, planReel, REEL_VERSION } from './reel-plan.mjs'
 import { normalizeDesign, sanitizeText } from './design.mjs'
 
-export const GROWTH_VERSION = '2026.1'
+export const GROWTH_VERSION = REEL_VERSION
 
 export const GROWTH_RECIPES = [
   { key: 'noir-impact', template: 'midnight', font: 'sans', textPosition: 'center', textAlign: 'left', fontSize: 92, animation: 'drift', duration: 8, music: 'focus', musicVolume: 42, letterSpacing: 0, lineHeight: 106, overlayOpacity: 12 },
@@ -88,14 +89,15 @@ export function growthDesignFor(quote, format = 'reel', cursor = 0, posts = []) 
   const pillar = detectPillar(quote)
   const objective = objectiveFor(cursor)
   const performance = recipePerformance(posts, format)
-  const ranked = GROWTH_RECIPES
+  const recipes = format === 'reel' ? GROWTH_RECIPES.slice(0, 4) : GROWTH_RECIPES
+  const ranked = recipes
     .map((recipe) => ({ recipe, score: performance.get(recipe.key) ?? null }))
     .filter((entry) => entry.score !== null)
     .sort((left, right) => right.score - left.score)
   const exploit = ranked.length >= 2 && cursor % 4 !== 0
   const recipe = exploit
     ? ranked[cursor % Math.min(3, ranked.length)].recipe
-    : GROWTH_RECIPES[cursor % GROWTH_RECIPES.length]
+    : recipes[cursor % recipes.length]
   const pillarHooks = hooks[pillar] ?? hooks.growth
   const objectiveCtas = ctas[objective]
   const visual = normalizeDesign({
@@ -103,14 +105,27 @@ export function growthDesignFor(quote, format = 'reel', cursor = 0, posts = []) 
     animation: format === 'post' ? 'static' : recipe.animation,
     music: format === 'post' ? 'silent' : recipe.music,
   }, format)
+  if (format === 'reel') {
+    const mood = moodFor(quote), config = MOODS[mood]
+    const recent = posts.filter(p => p.format === 'reel').slice(-2)
+    visual.template = recipe.key === 'editorial-calm' ? 'obsidian' : config.templates.find(t => !recent.some(p => p.design?.template === t)) || config.templates[cursor % config.templates.length]
+    visual.music = config.music.find(t => !recent.some(p => p.design?.music === t)) || config.music[cursor % config.music.length]
+    visual.font = recipe.font
+    visual.fontSize = 78
+    visual.textAlign = recipe.key === 'noir-impact' ? 'left' : 'center'
+    visual.textPosition = 'center'
+    visual.animation = 'pan'
+    visual.musicVolume = 55
+    visual.duration = planReel(quote).duration
+  }
   return {
     ...visual,
     growth: {
       version: GROWTH_VERSION,
       recipe: recipe.key,
       pillar,
-      hook: pillarHooks[Math.floor(cursor / 2) % pillarHooks.length],
-      cta: objectiveCtas[Math.floor(cursor / 3) % objectiveCtas.length],
+      hook: format === 'reel' ? planReel(quote).scenes[0].text : pillarHooks[Math.floor(cursor / 2) % pillarHooks.length],
+      cta: cursor % 5 === 0 ? 'Remember this.' : '',
       objective,
       shareabilityScore: scoreShareability(quote),
       selection: exploit ? 'exploit' : 'explore',

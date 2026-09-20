@@ -6,7 +6,7 @@ import path from 'node:path'
 import sharp from 'sharp'
 import { generateImage, generateMedia, generateStoryPromotion } from '../server/media.mjs'
 
-test('image and reel render with bundled fonts and visible text from frame one', async () => {
+test('image, Reel and story render with bundled fonts and validated streams', async () => {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'silent-forward-test-'))
   const base = {
     id: 'image', quote: 'Disciplină, focus și progres.', caption: '', accent: '#62e6ff', format: 'post',

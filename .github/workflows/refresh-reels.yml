@@ -1,0 +1,30 @@
+name: Refresh scheduled Reels
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['server/reel-plan.mjs']
+permissions:
+  contents: read
+concurrency:
+  group: refresh-scheduled-reels
+  cancel-in-progress: false
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    env:
+      REFRESH_REELS: 'true'
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+      CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
+      CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
+      CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: node server/index.mjs

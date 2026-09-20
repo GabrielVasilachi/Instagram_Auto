@@ -1,6 +1,9 @@
 import ffmpegPath from 'ffmpeg-static'
 import { spawn } from 'node:child_process'
-import { mkdir, unlink } from 'node:fs/promises'
+import { planReel } from './reel-plan.mjs'
+import { selectAssets } from './reel-assets.mjs'
+import { randomUUID } from 'node:crypto'
+import { mkdir, unlink, rename } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { normalizeAccent, normalizeDesign, sanitizeText } from './design.mjs'
@@ -63,7 +66,7 @@ function themeSvg(template, width, height) {
     dusk: `<linearGradient id="base" x1="0" y1="1" x2="1" y2="0"><stop stop-color="#130b1e"/><stop offset=".55" stop-color="#2a173a"/><stop offset="1" stop-color="#5a283f"/></linearGradient><radialGradient id="glow"><stop stop-color="#ff9d70" stop-opacity=".25"/><stop offset="1" stop-color="#ff9d70" stop-opacity="0"/></radialGradient><rect width="100%" height="100%" fill="url(#base)"/><ellipse cx="${width * .78}" cy="${height * .22}" rx="500" ry="360" fill="url(#glow)"/>`,
     sandstone: `<linearGradient id="base" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#2b1d15"/><stop offset=".5" stop-color="#6c4934"/><stop offset="1" stop-color="#1a1210"/></linearGradient><rect width="100%" height="100%" fill="url(#base)"/><path d="M-80 ${height * .72} Q ${width * .3} ${height * .56}, ${width + 80} ${height * .72}" fill="none" stroke="#ffd19b" stroke-opacity=".12" stroke-width="120"/>`,
     neon: `<linearGradient id="base" x1="0" y1="1" x2="1" y2="0"><stop stop-color="#03040a"/><stop offset=".55" stop-color="#10112a"/><stop offset="1" stop-color="#14061c"/></linearGradient><radialGradient id="cyan"><stop stop-color="#33e7ff" stop-opacity=".25"/><stop offset="1" stop-color="#33e7ff" stop-opacity="0"/></radialGradient><radialGradient id="pink"><stop stop-color="#ff4fc8" stop-opacity=".2"/><stop offset="1" stop-color="#ff4fc8" stop-opacity="0"/></radialGradient><rect width="100%" height="100%" fill="url(#base)"/><circle cx="${width * .16}" cy="${height * .75}" r="430" fill="url(#cyan)"/><circle cx="${width * .9}" cy="${height * .16}" r="390" fill="url(#pink)"/>`,
-    obsidian: `<linearGradient id="base" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#050506"/><stop offset=".5" stop-color="#141416"/><stop offset="1" stop-color="#020203"/></linearGradient><pattern id="grid" width="110" height="110" patternUnits="userSpaceOnUse" patternTransform="rotate(18)"><path d="M110 0H0V110" fill="none" stroke="#fff" stroke-opacity=".025"/></pattern><rect width="100%" height="100%" fill="url(#base)"/><rect width="100%" height="100%" fill="url(#grid)"/>`,
+    obsidian: `<rect width="100%" height="100%" fill="#030304"/><!--<linearGradient id="base" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#050506"/><stop offset=".5" stop-color="#141416"/><stop offset="1" stop-color="#020203"/></linearGradient><pattern id="grid" width="110" height="110" patternUnits="userSpaceOnUse" patternTransform="rotate(18)"><path d="M110 0H0V110" fill="none" stroke="#fff" stroke-opacity=".025"/></pattern><rect width="100%" height="100%" fill="url(#base)"/><rect width="100%" height="100%" fill="url(#grid)"/>-->`,
     meadow: `<linearGradient id="base" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#193246"/><stop offset=".58" stop-color="#254d50"/><stop offset="1" stop-color="#14271c"/></linearGradient><radialGradient id="sun"><stop stop-color="#f4efb2" stop-opacity=".25"/><stop offset="1" stop-color="#f4efb2" stop-opacity="0"/></radialGradient><rect width="100%" height="100%" fill="url(#base)"/><circle cx="${width * .76}" cy="${height * .18}" r="420" fill="url(#sun)"/>`,
     cinematic: `<linearGradient id="base" x1="0" y1="1" x2="1" y2="0"><stop stop-color="#030405"/><stop offset=".55" stop-color="#101417"/><stop offset="1" stop-color="#252b2d"/></linearGradient><radialGradient id="beam"><stop stop-color="#c7d1c2" stop-opacity=".13"/><stop offset="1" stop-color="#c7d1c2" stop-opacity="0"/></radialGradient><rect width="100%" height="100%" fill="url(#base)"/><ellipse cx="${width * .78}" cy="${height * .18}" rx="520" ry="900" fill="url(#beam)" transform="rotate(22 ${width * .78} ${height * .18})"/>`,
     concrete: `<linearGradient id="base" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#252728"/><stop offset=".5" stop-color="#111314"/><stop offset="1" stop-color="#292b2b"/></linearGradient><pattern id="cuts" width="190" height="190" patternUnits="userSpaceOnUse" patternTransform="rotate(-13)"><path d="M190 0H0V190" fill="none" stroke="#fff" stroke-opacity=".025" stroke-width="2"/></pattern><rect width="100%" height="100%" fill="url(#base)"/><rect width="100%" height="100%" fill="url(#cuts)"/>`,
@@ -78,8 +81,8 @@ function backgroundSvg(post, width, height, design) {
   const light = design.template === 'paper'
   const topLabel = post.storyPromotion ? `NEW ${post.storyPromotion} · SILENT FORWARD` : 'SILENT FORWARD'
   const bottomLabel = post.storyPromotion ? 'WATCH NOW ON PROFILE · @silentforward' : '@silentforward'
-  const topY = post.storyPromotion ? 165 : 105
-  const bottomY = post.storyPromotion ? height - 170 : height - 70
+  const topY = post.format === 'reel' ? 260 : 105
+  const bottomY = post.format === 'reel' ? height - 400 : height - 70
   return Buffer.from(`<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">${themeSvg(design.template, width, height)}
     <filter id="filmGrain"><feTurbulence baseFrequency=".7" numOctaves="3" stitchTiles="stitch"/><feColorMatrix values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 .025 0"/></filter>
     <radialGradient id="vignette"><stop offset=".45" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".3"/></radialGradient>
@@ -95,8 +98,8 @@ async function textOverlay(post, width, height, design) {
   const rawQuote = sanitizeText(post.quote, 220)
   const quote = design.textCase === 'uppercase' ? rawQuote.toUpperCase() : rawQuote
   const textColor = design.template === 'paper' ? '#171714' : '#f6f6f2'
-  const contentWidth = width - 180
-  const textBuffer = await sharp({
+  const contentWidth = post.format === 'reel' ? width - 300 : width - 180
+  let textBuffer = await sharp({
     text: {
       text: `<span foreground="${textColor}" font_weight="700" letter_spacing="${design.letterSpacing * 1024}">${escapeXml(quote)}</span>`,
       font: `${font.family} ${design.fontSize}`,
@@ -108,12 +111,16 @@ async function textOverlay(post, width, height, design) {
       rgba: true,
     },
   }).png().toBuffer()
-  const metadata = await sharp(textBuffer).metadata()
+  let metadata = await sharp(textBuffer).metadata()
+  if (post.format === 'reel' && metadata.height > 330) {
+    textBuffer = await sharp(textBuffer).resize({ height: 330, fit: 'inside' }).png().toBuffer()
+    metadata = await sharp(textBuffer).metadata()
+  }
   const textHeight = metadata.height ?? Math.round(design.fontSize * 4)
   const positions = {
     top: post.format === 'reel' ? 330 : 260,
-    center: Math.round((height - textHeight) / 2),
-    bottom: height - textHeight - (post.format === 'reel' ? 330 : 260),
+    center: Math.round((height - textHeight) / 2) - (post.format === 'reel' ? 80 : 0),
+    bottom: height - textHeight - (post.format === 'reel' ? 450 : 260),
   }
   const y = Math.max(180, Math.min(height - textHeight - 170, positions[design.textPosition]))
   const accentX = design.textAlign === 'center' ? Math.round((width - 150) / 2) : design.textAlign === 'right' ? width - 240 : 90
@@ -124,55 +131,9 @@ async function textOverlay(post, width, height, design) {
   return sharp({
     create: { width, height, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } },
   }).composite([
-    { input: textBuffer, left: 90, top: y },
+    { input: textBuffer, left: post.format === 'reel' ? 120 : 90, top: y },
     { input: accent, left: accentX, top: Math.min(height - 140, y + textHeight + 34) },
   ]).png().toBuffer()
-}
-
-async function growthOverlay(post, width, height, design, kind) {
-  const growth = design.growth ?? {}
-  const text = kind === 'hook'
-    ? growth.hook || 'A QUIET REMINDER FOR TODAY'
-    : growth.cta || 'KEEP MOVING FORWARD · @SILENTFORWARD'
-  const light = design.template === 'paper'
-  const textColor = light ? '#171714' : '#f7f7f2'
-  const labelColor = light ? '#605b52' : '#8b9096'
-  const align = kind === 'hook' ? 'left' : 'center'
-  const fontSize = kind === 'hook' ? 66 : 54
-  const contentWidth = width - 180
-  const textBuffer = await sharp({
-    text: {
-      text: `<span foreground="${textColor}" font_weight="800" letter_spacing="${kind === 'hook' ? 1450 : 650}">${escapeXml(text.toUpperCase())}</span>`,
-      font: `Inter ${fontSize}`,
-      fontfile: fonts.sans.file,
-      width: contentWidth,
-      align,
-      spacing: 8,
-      wrap: 'word-char',
-      rgba: true,
-    },
-  }).png().toBuffer()
-  const metadata = await sharp(textBuffer).metadata()
-  const textHeight = metadata.height ?? 180
-  const top = Math.round((height - textHeight) / 2)
-  const accent = await sharp({ create: { width: kind === 'hook' ? 120 : 70, height: 9, channels: 4, background: normalizeAccent(post.accent) } }).png().toBuffer()
-  const label = await sharp({
-    text: {
-      text: `<span foreground="${labelColor}" font_weight="700" letter_spacing="2300">${kind === 'hook' ? 'SILENT NOTE' : 'SILENT FORWARD'}</span>`,
-      font: 'Inter 17',
-      fontfile: fonts.sans.file,
-      width: contentWidth,
-      align,
-      rgba: true,
-    },
-  }).png().toBuffer()
-  const accentLeft = kind === 'hook' ? 90 : Math.round((width - 70) / 2)
-  return sharp({ create: { width, height, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } })
-    .composite([
-      { input: label, left: 90, top: Math.max(230, top - 95) },
-      { input: textBuffer, left: 90, top },
-      { input: accent, left: accentLeft, top: Math.min(height - 230, top + textHeight + 34) },
-    ]).png().toBuffer()
 }
 
 export async function generateImage(post, targetPath, layer = 'complete') {
@@ -207,7 +168,7 @@ function audioSource(music, duration) {
 
   return music === 'silent'
     ? `anullsrc=r=44100:cl=stereo:d=${duration}`
-    : `aevalsrc=${expressions[music] ?? expressions.ambient}:s=44100:d=${duration}`
+    : `aevalsrc=(${expressions[music] ?? expressions.ambient})*(0.7+0.3*sin(2*PI*0.09*t))+0.012*sin(2*PI*(220+55*floor(mod(t/2\\,4)))*t)*exp(-3*mod(t\\,2)):s=44100:d=${duration}`
 }
 
 function backgroundFilter(animation, width, height, duration) {
@@ -226,51 +187,80 @@ function backgroundFilter(animation, width, height, duration) {
   return filters[animation] ?? filters.drift
 }
 
+function runFfmpeg(args, timeout = 180_000) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(ffmpegPath, args)
+    let error = ''
+    const timer = setTimeout(() => { child.kill('SIGKILL'); reject(new Error('Reel render exceeded three minutes. Existing media is safe.')) }, timeout)
+    child.stderr.on('data', chunk => { error = (error + chunk).slice(-5000) })
+    child.on('error', error => { clearTimeout(timer); reject(error) })
+    child.on('close', code => { clearTimeout(timer); code === 0 ? resolve() : reject(new Error(error.slice(-1400))) })
+  })
+}
+
+export async function validateReel(file) {
+  // Decode both streams before any durable media reference is replaced.
+  await runFfmpeg(['-v', 'error', '-xerror', '-i', file, '-map', '0:v:0', '-map', '0:a:0', '-f', 'null', '-'], 60_000)
+}
+
 export async function generateMedia(post, mediaDirectory) {
   await mkdir(mediaDirectory, { recursive: true })
-  const imagePath = path.join(mediaDirectory, `${post.id}.png`)
-  if (post.format === 'post') return generateImage(post, imagePath)
+  if (post.format === 'post') return generateImage(post, path.join(mediaDirectory, `${post.id}.png`))
   if (!ffmpegPath) throw new Error('Generatorul video nu este disponibil.')
-
   const design = normalizeDesign(post.design, post.format)
-  const backgroundPath = path.join(mediaDirectory, `${post.id}-background.png`)
-  const textPath = path.join(mediaDirectory, `${post.id}-text.png`)
-  const hookPath = path.join(mediaDirectory, `${post.id}-hook.png`)
-  const ctaPath = path.join(mediaDirectory, `${post.id}-cta.png`)
+  const plan = planReel(post.quote, design)
+  const duration = plan.duration
+  const assets = await selectAssets(plan.mood, post.quote)
+  if (design.music === 'silent') delete assets.audio
+  const prefix = path.join(mediaDirectory, `${post.id}-${randomUUID()}`)
+  const backgroundPath = `${prefix}-bg.png`
+  const temporaryVideo = `${prefix}.mp4`
   const videoPath = path.join(mediaDirectory, `${post.id}.mp4`)
-  await generateImage(post, backgroundPath, 'background')
-  await generateImage(post, textPath, 'text')
-  await sharp(await growthOverlay(post, 1080, 1920, design, 'hook')).toFile(hookPath)
-  await sharp(await growthOverlay(post, 1080, 1920, design, 'cta')).toFile(ctaPath)
-
-  const hookEnd = Math.min(1.35, design.duration * .2)
-  const ctaStart = Math.max(hookEnd + 2.8, design.duration - 1.2)
-  const filter = `[0:v]${backgroundFilter(design.animation, 1080, 1920, design.duration)},format=yuv420p[bg];[1:v]format=rgba[quote];[2:v]format=rgba[hook];[3:v]format=rgba[cta];[bg][hook]overlay=0:0:enable='between(t,0,${hookEnd})'[stage1];[stage1][quote]overlay=0:0:enable='between(t,${Math.max(0, hookEnd - .1)},${Math.min(design.duration, ctaStart + .1)})'[stage2];[stage2][cta]overlay=0:0:enable='gte(t,${ctaStart})',format=yuv420p[v];[4:a]afade=t=in:st=0:duration=0.5,afade=t=out:st=${Math.max(0, design.duration - 1)}:duration=1,volume=${design.musicVolume / 100}[a]`
-
+  const temporary = [backgroundPath, temporaryVideo]
   try {
-    await new Promise((resolve, reject) => {
-      const child = spawn(ffmpegPath, [
-        '-y', '-threads', '2', '-filter_complex_threads', '1', '-loop', '1', '-i', backgroundPath,
-        '-loop', '1', '-i', textPath,
-        '-loop', '1', '-i', hookPath,
-        '-loop', '1', '-i', ctaPath,
-        '-f', 'lavfi', '-i', audioSource(design.music, design.duration),
-        '-t', String(design.duration),
-        '-filter_complex', filter,
-        '-map', '[v]', '-map', '[a]',
-        '-r', '30', '-c:v', 'libx264', '-preset', 'medium', '-pix_fmt', 'yuv420p',
-        '-c:a', 'aac', '-b:a', '128k', '-movflags', '+faststart', '-shortest', videoPath,
-      ])
-      let error = ''
-      child.stderr.on('data', (chunk) => { error += chunk.toString() })
-      child.on('error', reject)
-      child.on('close', (code) => code === 0 ? resolve() : reject(new Error(`Generarea video a eșuat: ${error.slice(-700)}`)))
-    })
+    await generateImage(post, backgroundPath, 'background')
+    const args = ['-y', '-threads', '2', '-filter_complex_threads', '1']
+    args.push(...(assets.video && design.template !== 'obsidian'
+      ? ['-stream_loop', '-1', '-i', assets.video]
+      : ['-loop', '1', '-framerate', '30', '-i', backgroundPath]))
+    const filters = []
+    let inputOffset = 0
+    if (assets.video && design.template !== 'obsidian') {
+      filters.push(`[0:v]scale=1144:2034:force_original_aspect_ratio=increase,crop=1080:1920,setsar=1,fps=30,eq=brightness=-0.15:contrast=1.05,drawbox=c=black@0.4:t=fill,format=yuv420p[bg]`)
+    } else filters.push(`[0:v]${backgroundFilter(design.animation, 1080, 1920, duration)},setsar=1,format=yuv420p[bg]`)
+    let previous = 'bg'
+    if (assets.video && design.template !== 'obsidian') {
+      const brandPath = `${prefix}-brand.png`
+      temporary.push(brandPath)
+      const branding = backgroundSvg(post, 1080, 1920, design).toString().replace(themeSvg(design.template, 1080, 1920), '')
+      await sharp(Buffer.from(branding)).png().toFile(brandPath)
+      args.push('-loop', '1', '-framerate', '30', '-i', brandPath)
+      filters.push('[bg][1:v]overlay=0:0[branded]')
+      inputOffset = 1
+      previous = 'branded'
+    }
+    for (let i = 0; i < plan.scenes.length; i++) {
+      const scene = plan.scenes[i]
+      const file = `${prefix}-${i}.png`
+      temporary.push(file)
+      await generateImage({ ...post, quote: scene.text }, file, 'text')
+      args.push('-loop', '1', '-framerate', '30', '-i', file)
+      filters.push(`[${i + 1 + inputOffset}:v]format=rgba,fade=t=in:st=${scene.start}:d=0.35:alpha=1,fade=t=out:st=${scene.end - .4}:d=0.4:alpha=1[text${i}]`)
+      filters.push(`[${previous}][text${i}]overlay=x=0:y='8*(1-min(1,max(0,(t-${scene.start})/0.35)))':enable='between(t,${scene.start},${scene.end})'[stage${i}]`)
+      previous = `stage${i}`
+    }
+    const audioIndex = plan.scenes.length + 1 + inputOffset
+    args.push(...(assets.audio ? ['-stream_loop', '-1', '-i', assets.audio] : ['-f', 'lavfi', '-i', audioSource(design.music, duration)]))
+    filters.push(`[${previous}]fade=t=in:st=0:d=0.15,fade=t=out:st=${duration - .25}:d=0.25,format=yuv420p[v]`)
+    filters.push(`[${audioIndex}:a]aformat=channel_layouts=stereo,loudnorm=I=-18:TP=-2:LRA=7,volume=${design.musicVolume / 100},alimiter=limit=0.89,afade=t=in:d=0.5,afade=t=out:st=${duration - .7}:d=0.7[a]`)
+    args.push('-t', String(duration), '-filter_complex', filters.join(';'), '-map', '[v]', '-map', '[a]', '-r', '30', '-c:v', 'libx264', '-threads', '2', '-preset', 'fast', '-crf', '21', '-maxrate', '6M', '-bufsize', '12M', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-b:a', '128k', '-ar', '48000', '-movflags', '+faststart', temporaryVideo)
+    await runFfmpeg(args)
+    await validateReel(temporaryVideo)
+    await rename(temporaryVideo, videoPath)
+    return videoPath
   } finally {
-    await Promise.all([backgroundPath, textPath, hookPath, ctaPath].map((file) => unlink(file).catch(() => {})))
+    await Promise.all(temporary.map(file => unlink(file).catch(() => {})))
   }
-
-  return videoPath
 }
 
 export async function generateStoryPromotion(post, mediaDirectory) {

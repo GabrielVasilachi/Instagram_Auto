@@ -11,7 +11,7 @@ test('design values are constrained to supported remote rendering options', () =
   const design = normalizeDesign({ template: 'unknown', fontSize: 999, duration: 1, musicVolume: -5 }, 'reel')
   assert.equal(design.template, 'midnight')
   assert.equal(design.fontSize, 112)
-  assert.equal(design.duration, 6)
+  assert.equal(design.duration, 5)
   assert.equal(design.musicVolume, 0)
 })
 

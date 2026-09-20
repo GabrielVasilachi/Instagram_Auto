@@ -8,9 +8,9 @@ test('growth engine classifies messages and produces an original creative brief'
   assert.equal(detectPillar(quote), 'discipline')
   assert.equal(design.growth.pillar, 'discipline')
   assert.ok(design.growth.hook.length > 15)
-  assert.ok(design.growth.cta.length > 15)
+  assert.equal(design.growth.cta, '')
   assert.ok(scoreShareability(quote) >= 70)
-  assert.ok(design.duration >= 7 && design.duration <= 8)
+  assert.ok(design.duration >= 5 && design.duration <= 16)
 })
 
 test('performance score rewards retention, shares and saves', () => {
