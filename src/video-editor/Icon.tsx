@@ -1,5 +1,17 @@
 import type { CSSProperties } from 'react'
 const paths: Record<string, string> = {
+  dashboard: 'M3 3h7v8H3Zm11 0h7v5h-7ZM3 15h7v6H3Zm11-3h7v9h-7Z',
+  calendar: 'M4 5h16v16H4ZM4 10h16M8 3v4m8-4v4M8 14h2m4 0h2m-8 4h2',
+  chart: 'M4 3v18h17M8 16v-5m5 5V7m5 9V4',
+  settings: 'M4 7h16M4 17h16M8 4v6m8 4v6',
+  bolt: 'm14 2-10 12h7l-1 8 10-12h-7Z',
+  menu: 'M4 6h16M4 12h16M4 18h16',
+  sidebar: 'M3 3h18v18H3ZM9 3v18',
+  logout: 'M9 3H3v18h6m5-14 5 5-5 5m-7-5h12',
+  list: 'M9 5h12M9 12h12M9 19h12M3 5h1M3 12h1M3 19h1',
+  search: 'M21 21l-6-6M17 10a7 7 0 1 1-14 0 7 7 0 0 1 14 0',
+  info: 'M12 11v6m0-10h.01M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0',
+  more: 'M5 12h.01M12 12h.01M19 12h.01',
   play: 'm8 5 11 7-11 7Z',
   pause: 'M8 5v14M16 5v14',
   import: 'M12 15V3m-4 4 4-4 4 4M4 15v5h16v-5',
