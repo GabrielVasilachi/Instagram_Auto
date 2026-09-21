@@ -4,8 +4,8 @@
   background: #f7f8fa;
   font-synthesis: none;
   color-scheme: light;
-  --accent: #5046e5;
-  --accent-soft: #eeedff;
+  --accent: #126655;
+  --accent-soft: #e6f1eb;
   --ink: #20242e;
   --muted: #697386;
   --line: #e7e9ef;
@@ -57,7 +57,7 @@ a {
 button:focus-visible,
 a:focus-visible,
 summary:focus-visible {
-  outline: 3px solid #b8b3ff;
+  outline: 3px solid #a7d2bd;
   outline-offset: 3px;
 }
 h1,
@@ -127,8 +127,8 @@ button {
   box-shadow: 0 1px 2px #28214e12;
 }
 .primary:hover:not(:disabled) {
-  background: #4137c7;
-  border-color: #4137c7;
+  background: #0d5144;
+  border-color: #0d5144;
 }
 .secondary {
   background: #fff;
@@ -137,7 +137,7 @@ button {
 }
 .secondary:hover:not(:disabled) {
   background: #f5f5ff;
-  border-color: #bfbbea;
+  border-color: #b5d7c0;
 }
 .ghost,
 .text-link {
@@ -148,7 +148,7 @@ button {
   min-height: 32px;
 }
 .text-link:hover {
-  color: #3126b4;
+  color: #0d5144;
 }
 .icon-button {
   width: 34px;
@@ -272,7 +272,7 @@ button {
 .nav-count {
   margin-left: auto;
   font-size: 10px;
-  background: #dedbff;
+  background: #c9e2d1;
   border-radius: 5px;
   padding: 2px 6px;
 }
@@ -326,8 +326,8 @@ button {
   border-radius: 50%;
   display: grid;
   place-items: center;
-  background: #f0effb;
-  color: #6b61bb;
+  background: #e6f1eb;
+  color: #126655;
   font-size: 10px;
   font-weight: 650;
   flex-shrink: 0;
@@ -488,8 +488,8 @@ summary::-webkit-details-marker {
   padding: 12px 15px;
   margin-bottom: 20px;
   background: #f0efff;
-  border: 1px solid #dedaf9;
-  color: #514896;
+  border: 1px solid #c9e2d1;
+  color: #126655;
   border-radius: 8px;
   font-size: 12px;
 }
@@ -633,8 +633,8 @@ summary::-webkit-details-marker {
   place-items: center;
   width: 34px;
   height: 38px;
-  background: #f2f1fc;
-  color: #8178ba;
+  background: #e6f1eb;
+  color: #57977b;
   border: 1px solid #e7e4f6;
   border-radius: 7px;
   flex-shrink: 0;
@@ -698,7 +698,7 @@ summary::-webkit-details-marker {
 .large-chart i {
   display: block;
   width: 100%;
-  background: #a59fea;
+  background: #80ba9b;
   border-radius: 4px 4px 0 0;
   max-height: 100%;
 }
@@ -780,7 +780,7 @@ textarea::placeholder {
 input:focus,
 select:focus,
 textarea:focus {
-  border-color: #9b92ec;
+  border-color: #8fc9a9;
   box-shadow: 0 0 0 3px #eeebff;
 }
 input:disabled,
@@ -946,7 +946,7 @@ input[type='checkbox'] {
   grid-column: 1 / -1;
 }
 .range-label output {
-  color: #7e77b0;
+  color: #4a8d71;
   font-size: 10px;
 }
 .growth-brief {
@@ -968,7 +968,7 @@ input[type='checkbox'] {
 }
 .growth-brief strong {
   font-size: 11px;
-  color: #696485;
+  color: #496954;
   font-weight: 500;
   line-height: 1.5;
 }
@@ -1187,8 +1187,8 @@ tbody tr:hover {
   font-size: 9px;
   font-weight: 500;
   white-space: nowrap;
-  background: #f0effb;
-  color: #8274c7;
+  background: #e6f1eb;
+  color: #126655;
 }
 .status i {
   width: 4px;
@@ -1349,7 +1349,7 @@ tbody tr:hover {
   text-align: left;
 }
 .template-library-card:hover {
-  border-color: #b9b2f0;
+  border-color: #a7d2bd;
 }
 .template-sample {
   display: flex;
@@ -1411,7 +1411,7 @@ tbody tr:hover {
   width: 64px;
   height: 64px;
   background: #eeecfc;
-  color: #8c82cf;
+  color: #126655;
   border-radius: 14px;
   margin-bottom: 20px;
 }
@@ -1471,7 +1471,7 @@ tbody tr:hover {
 .ranking b {
   display: block;
   height: 100%;
-  background: #aaa3e8;
+  background: #80ba9b;
 }
 .growth-signals {
   display: grid;
@@ -1487,7 +1487,7 @@ tbody tr:hover {
 }
 .growth-signals strong {
   font-size: 11px;
-  color: #7d75b6;
+  color: #126655;
   font-weight: 500;
 }
 .growth-signals small {
@@ -1543,7 +1543,7 @@ tbody tr:hover {
   padding: 6px 8px;
   background: #f4f3fb;
   border-radius: 5px;
-  color: #80779f;
+  color: #59826d;
   font-size: 9px;
 }
 .setting-row {
@@ -1709,7 +1709,7 @@ tbody tr:hover {
 }
 .calendar-day.selected {
   background: #f8f7ff;
-  box-shadow: inset 0 0 0 1px #b4aaef;
+  box-shadow: inset 0 0 0 1px #8fc9a9;
 }
 .day-number {
   display: grid;
@@ -1737,7 +1737,7 @@ tbody tr:hover {
   margin-top: 4px;
   font-size: 8px;
   background: #f1effa;
-  color: #8072b7;
+  color: #126655;
   text-align: left;
 }
 .calendar-event span {
@@ -1802,7 +1802,7 @@ tbody tr:hover {
   flex: 1;
 }
 .agenda-item svg {
-  color: #aaa2d4;
+  color: #77aa8f;
 }
 .empty-state {
   display: flex;
@@ -1820,7 +1820,7 @@ tbody tr:hover {
   height: 50px;
   border-radius: 12px;
   background: #f0effa;
-  color: #aaa1d1;
+  color: #77aa8f;
   margin-bottom: 20px;
 }
 .empty-state h3 {
@@ -1998,7 +1998,7 @@ tbody tr:hover {
 }
 .login-pitch .eyebrow {
   font-size: 9px;
-  color: #a09abf;
+  color: #a9c2ad;
   margin-bottom: 22px;
 }
 .login-pitch h1 {
@@ -2009,11 +2009,11 @@ tbody tr:hover {
   margin-bottom: 24px;
 }
 .login-pitch em {
-  color: #8078b4;
+  color: #cfdfa8;
   font-style: normal;
 }
 .login-pitch > p:last-of-type {
-  color: #8d90a4;
+  color: #b9c9ba;
   font-size: 14px;
   line-height: 1.9;
   max-width: 350px;
@@ -2025,16 +2025,16 @@ tbody tr:hover {
   flex-wrap: wrap;
   margin-top: 40px;
   font-size: 11px;
-  color: #a8a3bf;
+  color: #acc7b2;
 }
 .login-flow span {
   display: flex;
   align-items: center;
   gap: 7px;
-  color: #89829f;
+  color: #b6cbb8;
 }
 .login-signature {
-  color: #aaa6bf;
+  color: #a9bbaa;
   font-size: 10px;
 }
 .login-form-side {
@@ -2053,12 +2053,12 @@ tbody tr:hover {
   height: 45px;
   border: 1px solid #e9e7f5;
   border-radius: 12px;
-  color: #9d95bf;
+  color: #599977;
   margin-bottom: 28px;
 }
 .login-card .eyebrow {
   font-size: 8px;
-  color: #a8a1be;
+  color: #a6b9a8;
 }
 .login-card h2 {
   font-size: 27px;
@@ -2066,7 +2066,7 @@ tbody tr:hover {
   letter-spacing: -0.8px;
 }
 .login-copy {
-  color: #9599aa;
+  color: #78887d;
   font-size: 12px;
   margin: 12px 0 35px;
 }
@@ -2080,7 +2080,7 @@ tbody tr:hover {
   justify-content: center;
   gap: 6px;
   font-size: 10px;
-  color: #a2a6b4;
+  color: #78887d;
   margin-top: 25px;
 }
 .local-help {
@@ -2647,5 +2647,5 @@ tbody tr:hover {
   color: #697386;
 }
 .login-pitch em {
-  color: #655b9b;
+  color: #126655;
 }

@@ -1,0 +1,343 @@
+.ve-app {
+  --ve-bg: var(--canvas);
+  --ve-panel: var(--surface);
+  --ve-line: var(--line);
+  --ve-muted: var(--muted);
+  --ve-accent: var(--accent);
+  background: var(--ve-bg);
+  color: var(--ink);
+  color-scheme: inherit;
+}
+
+.ve-header,
+.ve-library,
+.ve-inspector,
+.ve-inspector > .ve-panel-heading,
+.ve-playback,
+.ve-timeline,
+.ve-timeline-tools,
+.ve-track-label,
+.ve-ruler-label,
+.ve-ruler,
+.ve-track-lane,
+.ve-track-row:nth-child(odd) .ve-track-lane {
+  background: var(--ve-panel);
+  color: var(--ink);
+  border-color: var(--ve-line);
+}
+
+.ve-header,
+.ve-panel-heading,
+.ve-property-section,
+.ve-library-tabs,
+.ve-timeline-tools,
+.ve-track-row,
+.ve-ruler,
+.ve-timeline-footer,
+.ve-planner-form {
+  border-color: var(--ve-line);
+}
+
+.ve-preview,
+.ve-stage {
+  background: var(--surface-soft);
+}
+
+.ve-stage {
+  background-image: radial-gradient(
+    circle at 50% 50%,
+    color-mix(in srgb, var(--accent) 8%, transparent),
+    transparent 70%
+  );
+}
+
+.ve-app button {
+  color: var(--ink);
+}
+
+.ve-app button:hover:not(:disabled) {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.ve-back,
+.ve-brand small,
+.ve-project-title > span,
+.ve-app small,
+.ve-library-tabs button,
+.ve-inspector label,
+.ve-timeline-footer,
+.ve-timeline-hint,
+.ve-ruler > span,
+.ve-track-empty,
+.ve-properties-empty,
+.ve-properties-empty p {
+  color: var(--muted) !important;
+}
+
+.ve-brand-mark,
+.ve-loading .ve-brand-mark {
+  background: #d8e7b5;
+  color: #17321f;
+}
+
+.ve-brand > span:last-child,
+.ve-project-title input,
+.ve-preview .ve-panel-heading,
+.ve-property-section h3,
+.ve-timeline-title,
+.ve-track-label strong,
+.ve-time strong,
+.ve-slider output,
+.ve-canvas-empty strong {
+  color: var(--ink) !important;
+}
+
+.ve-divider {
+  background: var(--line);
+}
+
+.ve-app input:not([type='range']):not([type='checkbox']),
+.ve-app select,
+.ve-app textarea {
+  background: var(--field);
+  border-color: var(--line);
+  color: var(--ink);
+}
+
+.ve-app input:focus,
+.ve-app select:focus,
+.ve-app textarea:focus {
+  border-color: var(--focus);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus) 24%, transparent);
+}
+
+.ve-app .ve-primary,
+.ve-app .ve-play {
+  background: #126655;
+  color: #fff;
+}
+
+.ve-app .ve-primary:hover:not(:disabled),
+.ve-app .ve-play:hover:not(:disabled) {
+  background: #0d5144;
+  color: #fff;
+}
+
+:root[data-theme='dark'] .ve-app .ve-primary,
+:root[data-theme='dark'] .ve-app .ve-play {
+  background: #9bdcb7;
+  color: #102117;
+}
+
+:root[data-theme='dark'] .ve-app .ve-primary:hover:not(:disabled),
+:root[data-theme='dark'] .ve-app .ve-play:hover:not(:disabled) {
+  background: #b9ebce;
+  color: #102117;
+}
+
+.ve-app .ve-secondary,
+.ve-app .ve-small-button,
+.ve-app .theme-toggle {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.ve-app .theme-toggle {
+  min-height: 32px;
+  padding: 6px 9px;
+  gap: 7px;
+}
+
+.ve-app .theme-toggle svg {
+  color: var(--accent);
+}
+
+.ve-app .ve-active,
+.ve-app .ve-import-button,
+.ve-import-empty > div,
+.ve-export-symbol,
+.ve-app .ve-segments .ve-active {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-color: var(--line);
+}
+
+.ve-app .ve-library-tabs button.ve-active {
+  color: var(--accent) !important;
+  border-bottom-color: var(--accent);
+}
+
+.ve-media-thumb,
+.ve-segments,
+.ve-app .ve-relink,
+.ve-app .ve-import-empty,
+.ve-app .ve-text-preset,
+.ve-app .ve-template,
+.ve-app .ve-look,
+.ve-export-summary,
+.ve-export-summary > div,
+.ve-static-input {
+  background: var(--surface-soft);
+  border-color: var(--line);
+  color: var(--ink);
+}
+
+.ve-app .ve-search {
+  background: var(--field) !important;
+}
+
+.ve-import-empty strong,
+.ve-properties-empty strong,
+.ve-media-item > strong,
+.ve-template strong,
+.ve-look strong {
+  color: var(--ink);
+}
+
+.ve-import-empty span,
+.ve-properties-empty p {
+  color: var(--muted);
+}
+
+.ve-app .ve-media-thumb button {
+  background: var(--surface);
+  color: var(--accent);
+}
+
+.ve-canvas-empty span,
+.ve-canvas-note,
+.ve-time span,
+.ve-export-modal > p,
+.ve-export-modal footer > span {
+  color: var(--muted);
+}
+
+.ve-canvas-empty {
+  background: #07110dca;
+}
+
+.ve-canvas-empty strong {
+  color: #f1f5ed !important;
+}
+
+.ve-canvas-empty span {
+  color: #becfc0;
+}
+
+.ve-app .ve-segments button {
+  color: var(--ink);
+}
+
+.ve-track-lane,
+.ve-track-row:nth-child(odd) .ve-track-lane {
+  background-image: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--muted) 13%, transparent) 1px,
+    transparent 1px
+  );
+}
+
+.ve-track-code,
+.ve-track-code.ve-text,
+.ve-track-code.ve-overlay {
+  color: var(--accent);
+}
+
+.ve-track-code.ve-audio {
+  color: #4c9a74;
+}
+
+.ve-clip {
+  background: #dbe9de;
+  border-color: #9fc7ae;
+  color: #1d5036;
+}
+
+.ve-clip-text,
+.ve-clip-image {
+  background: #e4e9d6;
+  border-color: #b9c9a4;
+  color: #425935;
+}
+
+.ve-clip-audio {
+  background: #dcefe5;
+  border-color: #98c4ac;
+  color: #245b3f;
+}
+
+:root[data-theme='dark'] .ve-clip {
+  background: #345742;
+  border-color: #648f70;
+  color: #e0f4e2;
+}
+
+:root[data-theme='dark'] .ve-clip-text,
+:root[data-theme='dark'] .ve-clip-image {
+  background: #48553b;
+  border-color: #718560;
+  color: #edf2d7;
+}
+
+:root[data-theme='dark'] .ve-clip-audio {
+  background: #285246;
+  border-color: #56887b;
+  color: #d6f0e7;
+}
+
+.ve-clip-name {
+  background: color-mix(in srgb, var(--surface) 78%, transparent);
+}
+
+.ve-clip.ve-selected,
+.ve-selected .ve-trim-handle {
+  outline-color: var(--accent);
+  border-color: var(--accent);
+}
+
+.ve-selected .ve-trim-handle,
+.ve-playhead,
+.ve-playhead > span {
+  background: var(--accent);
+}
+
+.ve-modal-backdrop {
+  background: var(--overlay);
+  backdrop-filter: blur(6px);
+}
+
+.ve-export-modal {
+  background: var(--surface-raised);
+  border-color: var(--line);
+  color: var(--ink);
+  box-shadow: 0 28px 90px #03120d60;
+}
+
+.ve-export-progress strong,
+.ve-success,
+.video-editor-nav,
+.video-editor-nav small {
+  color: var(--accent) !important;
+}
+
+.ve-export-progress progress {
+  accent-color: var(--accent);
+}
+
+.ve-loading {
+  background: var(--canvas);
+  color: var(--muted);
+}
+
+@media (max-width: 760px) {
+  .ve-header-actions .theme-toggle span {
+    display: none;
+  }
+
+  .ve-header-actions .theme-toggle {
+    min-width: 30px;
+    padding: 6px;
+  }
+}

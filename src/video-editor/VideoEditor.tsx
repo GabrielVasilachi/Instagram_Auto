@@ -4,12 +4,14 @@ import { useMedia } from './media';
 import { newProject } from './model';
 import { clearMedia } from './storage';
 import { Icon } from './Icon';
+import { ThemeToggle } from '../Theme';
 import { MediaLibrary } from './MediaLibrary';
 import { VideoPreview } from './VideoPreview';
 import { Timeline } from './Timeline';
 import { Inspector } from './Inspector';
 import { ExportModal } from './ExportModal';
 import './editor.css';
+import './editor-appearance.css';
 
 export default function VideoEditor() {
   const editor = useEditor(),
@@ -82,6 +84,7 @@ export default function VideoEditor() {
           </span>
         </div>
         <div className="ve-header-actions">
+          <ThemeToggle />
           <button
             title="New project"
             className="ve-new"

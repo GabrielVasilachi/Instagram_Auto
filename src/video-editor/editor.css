@@ -3,7 +3,7 @@
   --ve-panel: #ffffff;
   --ve-line: #e7e9ef;
   --ve-muted: #697386;
-  --ve-accent: #5046e5;
+  --ve-accent: #126655;
   color: #303747;
   background: var(--ve-bg);
   font:
@@ -114,7 +114,7 @@
 }
 .ve-app .ve-active {
   color: var(--ve-accent) !important;
-  background: #5046e510;
+  background: #12665510;
 }
 .ve-app label {
   font-size: 11px;
@@ -183,7 +183,7 @@
 .ve-brand-mark {
   display: grid;
   place-items: center;
-  background: var(--ve-accent, #5046e5);
+  background: var(--ve-accent, #126655);
   color: #697386;
   border-radius: 7px;
   width: 34px;
@@ -321,7 +321,7 @@
 }
 .ve-library-tabs button.ve-active {
   border-bottom-color: var(--ve-accent);
-  color: #5046e5;
+  color: #126655;
 }
 .ve-library-body {
   flex: 1;
@@ -334,8 +334,8 @@
 }
 .ve-app .ve-import-button {
   border: 1px solid #e0e4ec;
-  background: #5046e50b;
-  color: #5046e5;
+  background: #1266550b;
+  color: #126655;
   width: 100%;
   font-size: 11px;
   padding: 9px;
@@ -506,7 +506,7 @@
 }
 .ve-app .ve-accent-text {
   font-size: 15px;
-  color: #5046e5;
+  color: #126655;
 }
 .ve-app .ve-caption {
   font-size: 13px;
@@ -685,7 +685,7 @@
   margin: 0 4px;
 }
 .ve-app .ve-play:hover:not(:disabled) {
-  background: #5046e5;
+  background: #126655;
   color: #697386;
 }
 .ve-playback .ve-monitor-volume {
@@ -1014,9 +1014,9 @@
   color: #303747;
 }
 .ve-clip.ve-selected {
-  outline: 1.5px solid #5046e5;
+  outline: 1.5px solid #126655;
   outline-offset: 1px;
-  border-color: #5046e5;
+  border-color: #126655;
   z-index: 2;
 }
 .ve-clip-name {
@@ -1071,8 +1071,8 @@
   border-right: 3px solid #ffffff25;
 }
 .ve-selected .ve-trim-handle {
-  background: #5046e5;
-  border-color: #5046e5;
+  background: #126655;
+  border-color: #126655;
 }
 .ve-trim-handle:after {
   content: '';
@@ -1097,7 +1097,7 @@
   top: 14px;
   bottom: 0;
   width: 1px;
-  background: #5046e5;
+  background: #126655;
   z-index: 2;
   pointer-events: none;
   box-shadow: 0 0 0 1px #0004;
@@ -1108,7 +1108,7 @@
   left: -5px;
   width: 11px;
   height: 13px;
-  background: #5046e5;
+  background: #126655;
   clip-path: polygon(0 0, 100% 0, 100% 65%, 50% 100%, 0 65%);
 }
 .ve-locked .ve-track-lane {
@@ -1192,9 +1192,9 @@
   width: 45px;
   height: 45px;
   border-radius: 10px;
-  background: #5046e50b;
-  border: 1px solid #5046e530;
-  color: #5046e5;
+  background: #1266550b;
+  border: 1px solid #12665530;
+  color: #126655;
 }
 .ve-export-modal header small {
   font-size: 8px;
@@ -1285,7 +1285,7 @@
   margin-bottom: 10px;
 }
 .ve-export-progress strong {
-  color: #5046e5;
+  color: #126655;
 }
 .ve-export-progress progress {
   width: 100%;
@@ -1293,14 +1293,14 @@
   border: 0;
   border-radius: 4px;
   background: #f1f3f7;
-  accent-color: #5046e5;
+  accent-color: #126655;
 }
 .ve-export-progress progress::-webkit-progress-bar {
   background: #f1f3f7;
   border-radius: 4px;
 }
 .ve-export-progress progress::-webkit-progress-value {
-  background: #5046e5;
+  background: #126655;
   border-radius: 4px;
 }
 .ve-export-modal footer {
@@ -1348,7 +1348,7 @@
   border-top: 1px solid #e0e4ec;
 }
 .ve-success {
-  color: #5046e5 !important;
+  color: #126655 !important;
 }
 .ve-success a {
   text-decoration: underline;
@@ -1375,15 +1375,15 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  color: #5046e5 !important;
+  color: #126655 !important;
 }
 .video-editor-nav small {
   font-size: 8px;
   margin-left: auto;
   padding: 3px 5px;
-  border: 1px solid #5046e544;
+  border: 1px solid #12665544;
   border-radius: 4px;
-  color: #5046e5;
+  color: #126655;
 }
 @media (min-height: 1000px) {
   .ve-timeline {
@@ -1679,7 +1679,7 @@
 .ve-app input:focus,
 .ve-app select:focus,
 .ve-app textarea:focus {
-  border-color: #9b92ec;
+  border-color: #8fc9a9;
   box-shadow: 0 0 0 3px #eeebff;
 }
 .ve-app input[type='range'] {
@@ -1698,8 +1698,8 @@
     color 0.18s;
 }
 .ve-app button:hover:not(:disabled) {
-  background: #eeedff;
-  color: #4137c7;
+  background: #e6f1eb;
+  color: #0d5144;
 }
 .ve-app button:disabled {
   opacity: 0.45;
@@ -1707,21 +1707,21 @@
 .ve-app .ve-primary,
 .ve-brand-mark,
 .ve-app .ve-play {
-  background: #5046e5;
+  background: #126655;
   color: #fff;
 }
 .ve-app .ve-primary:hover:not(:disabled),
 .ve-app .ve-play:hover:not(:disabled) {
-  background: #4137c7;
+  background: #0d5144;
   color: #fff;
 }
 .ve-app .ve-active {
-  background: #eeedff;
+  background: #e6f1eb;
 }
 .ve-app .ve-import-button {
-  background: #f4f3ff;
-  border-color: #dcd8fb;
-  color: #5046e5;
+  background: #edf5ef;
+  border-color: #c9e2d1;
+  color: #126655;
 }
 .ve-divider {
   background: #e7e9ef;
@@ -1767,12 +1767,12 @@
 }
 .ve-app .ve-media-thumb button {
   background: #fff;
-  color: #5046e5;
+  color: #126655;
 }
 .ve-import-empty > div,
 .ve-export-symbol {
-  background: #eeedff;
-  color: #5046e5;
+  background: #e6f1eb;
+  color: #126655;
 }
 .ve-canvas-empty {
   color: #8992a2;
@@ -1788,7 +1788,7 @@
 .ve-track-code,
 .ve-track-code.ve-text,
 .ve-track-code.ve-overlay {
-  color: #6258b9;
+  color: #7ab393;
 }
 .ve-track-code.ve-audio {
   color: #34745a;
@@ -1801,8 +1801,8 @@
 .ve-clip-text,
 .ve-clip-image {
   background: #e9e3f8;
-  border-color: #c5b5e5;
-  color: #604980;
+  border-color: #bed3b6;
+  color: #44634b;
 }
 .ve-clip-audio {
   background: #e0eee8;
@@ -1813,8 +1813,8 @@
   background: #f7f8face;
 }
 .ve-clip.ve-selected {
-  outline-color: #5046e5;
-  border-color: #5046e5;
+  outline-color: #126655;
+  border-color: #126655;
 }
 .ve-trim-handle:after {
   background: #fff;

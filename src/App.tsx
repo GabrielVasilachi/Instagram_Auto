@@ -1,4 +1,6 @@
 import { Icon } from './video-editor/Icon';
+import { FloatingMenu } from './FloatingMenu';
+import { ThemeToggle } from './Theme';
 import { SoundscapePreview } from './SoundscapePreview';
 import { planReel } from '../server/reel-plan.mjs';
 import { FormEvent, Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react';
@@ -467,6 +469,7 @@ function Login({ onAuthenticated }: { onAuthenticated: () => void }) {
         <small className="login-signature">SilentForward / Quiet ambition.</small>
       </section>
       <section className="login-form-side">
+        <ThemeToggle className="login-theme-toggle" />
         <div className="login-card">
           <span className="login-lock">
             <Icon name="lock" size={22} />
@@ -770,7 +773,7 @@ function DashboardApp({ onLogout }: { onLogout: () => void }) {
     try {
       const response = await fetch('/api/dashboard');
       if (response.status === 401) return onLogout();
-      setData(await responseJson(response));
+      setData({ ...initialDashboard, ...(await responseJson(response)) });
     } catch (reason) {
       setNotice(reason instanceof Error ? reason.message : 'Serverul nu este disponibil.');
     } finally {
@@ -1132,41 +1135,36 @@ function DashboardApp({ onLogout }: { onLogout: () => void }) {
           </div>
           <div className="topbar-right">
             <span className="workspace-name">@{data.account.username}</span>
-            <details className="create-menu">
-              <summary className="primary">
-                <Icon name="plus" size={16} /> Create
-              </summary>
-              <div className="create-popover">
-                <button
-                  onClick={(event) => {
-                    event.currentTarget.closest('details')?.removeAttribute('open');
-                    startCreate('reel');
-                  }}
-                >
-                  <Icon name="video" />
-                  <span>
-                    Generează Reel<small>Video vertical, pregătit pentru Instagram</small>
-                  </span>
-                </button>
-                <button
-                  onClick={(event) => {
-                    event.currentTarget.closest('details')?.removeAttribute('open');
-                    startCreate('post');
-                  }}
-                >
-                  <Icon name="image" />
-                  <span>
-                    Creează postare<small>O idee, un vizual, un mesaj</small>
-                  </span>
-                </button>
-                <a href="/video-editor">
-                  <Icon name="import" />
-                  <span>
-                    Deschide Video Editor<small>Importă și montează propriul conținut</small>
-                  </span>
-                </a>
-              </div>
-            </details>
+            <ThemeToggle />
+            <FloatingMenu
+              className="create-popover"
+              label="Creează conținut"
+              width={285}
+              trigger={
+                <>
+                  <Icon name="plus" size={16} /> Create
+                </>
+              }
+            >
+              <button role="menuitem" onClick={() => startCreate('reel')}>
+                <Icon name="video" />
+                <span>
+                  Generează Reel<small>Video vertical, pregătit pentru Instagram</small>
+                </span>
+              </button>
+              <button role="menuitem" onClick={() => startCreate('post')}>
+                <Icon name="image" />
+                <span>
+                  Creează postare<small>O idee, un vizual, un mesaj</small>
+                </span>
+              </button>
+              <a role="menuitem" href="/video-editor">
+                <Icon name="import" />
+                <span>
+                  Deschide Video Editor<small>Importă și montează propriul conținut</small>
+                </span>
+              </a>
+            </FloatingMenu>
           </div>
         </div>
         <main className="dashboard-main">
@@ -1694,36 +1692,36 @@ function Planner({
       <button className="secondary" onClick={() => onPreview(post.id)}>
         <Icon name="play" size={14} /> Preview
       </button>
-      <details className="row-menu">
-        <summary className="icon-button" aria-label={`Acțiuni pentru ${post.quote}`}>
-          <Icon name="more" />
-        </summary>
-        <div className="row-popover">
-          {['scheduled', 'failed'].includes(post.status) && (
-            <>
-              <button onClick={() => onEdit(post)}>
-                <Icon name="settings" /> Editează
-              </button>
-              <button onClick={() => onPublish(post)}>
-                <Icon name="export" /> Publică acum
-              </button>
-            </>
-          )}
-          {post.status === 'published' && post.design.story?.status !== 'published' && (
-            <button onClick={() => onStory(post)}>
-              <Icon name="export" /> Publică Story
+      <FloatingMenu
+        className="row-popover"
+        label={`Acțiuni pentru ${post.quote}`}
+        width={190}
+        trigger={<Icon name="more" />}
+      >
+        {['scheduled', 'failed'].includes(post.status) && (
+          <>
+            <button role="menuitem" onClick={() => onEdit(post)}>
+              <Icon name="settings" /> Editează
             </button>
-          )}
-          <button onClick={() => onDuplicate(post)}>
-            <Icon name="copy" /> Duplică
+            <button role="menuitem" onClick={() => onPublish(post)}>
+              <Icon name="export" /> Publică acum
+            </button>
+          </>
+        )}
+        {post.status === 'published' && post.design.story?.status !== 'published' && (
+          <button role="menuitem" onClick={() => onStory(post)}>
+            <Icon name="export" /> Publică Story
           </button>
-          {['scheduled', 'failed'].includes(post.status) && (
-            <button className="destructive" onClick={() => onRemove(post)}>
-              <Icon name="trash" /> Șterge
-            </button>
-          )}
-        </div>
-      </details>
+        )}
+        <button role="menuitem" onClick={() => onDuplicate(post)}>
+          <Icon name="copy" /> Duplică
+        </button>
+        {['scheduled', 'failed'].includes(post.status) && (
+          <button role="menuitem" className="destructive" onClick={() => onRemove(post)}>
+            <Icon name="trash" /> Șterge
+          </button>
+        )}
+      </FloatingMenu>
     </div>
   );
   return (
