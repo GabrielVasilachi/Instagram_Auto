@@ -83,6 +83,7 @@ type Post = {
 };
 type Dashboard = {
   account: { connected: boolean; username: string; accountType: string };
+  branding: { name: string; username: string };
   publishingReady: boolean;
   automation: {
     configured: boolean;
@@ -198,6 +199,7 @@ const defaultDesign: Design = {
 };
 const initialDashboard: Dashboard = {
   account: { connected: false, username: 'silentforward', accountType: 'BUSINESS' },
+  branding: { name: 'Silent Forward', username: 'silentforward' },
   publishingReady: false,
   automation: { configured: false, lastRun: null },
   posts: [],
@@ -364,7 +366,7 @@ function initialDraft(): Draft {
   return {
     quote: 'Discipline gets quiet before results get loud.',
     caption:
-      'A reminder for the work nobody sees.\n\nQuiet work. Visible results. Follow @silentforward.\n\n#motivation #discipline #mindset #consistency #silentforward',
+      'A reminder for the work nobody sees.\n\nQuiet work. Visible results.\n\n#motivation #discipline #mindset #consistency',
     accent: accents[0],
     format: 'reel',
     scheduledFor: localInput(),
@@ -685,7 +687,7 @@ function DesignControls({
     </div>
   );
 }
-function VisualPreview({ draft }: { draft: Draft }) {
+function VisualPreview({ draft, branding }: { draft: Draft; branding: Dashboard['branding'] }) {
   const [clock, setClock] = useState(0);
   let plan: ReturnType<typeof planReel> | null = null,
     error = '';
@@ -726,7 +728,7 @@ function VisualPreview({ draft }: { draft: Draft }) {
         className={`post-preview ${draft.format} theme-${draft.design.template} position-${draft.design.textPosition}`}
         style={{ '--overlay': draft.design.overlayOpacity / 100 } as React.CSSProperties}
       >
-        <span className="preview-mark">SILENT FORWARD</span>
+        <span className="preview-mark">{branding.name.toUpperCase()}</span>
         <div className="preview-message" style={style}>
           <p>{plan ? scene?.text || '' : draft.quote}</p>
           <span
@@ -734,7 +736,7 @@ function VisualPreview({ draft }: { draft: Draft }) {
             style={{ background: draft.accent }}
           />
         </div>
-        <small>@silentforward</small>
+        <small>@{branding.username}</small>
       </div>
       {plan && (
         <p className="settings-note">
@@ -1382,6 +1384,7 @@ function DashboardApp({ onLogout }: { onLogout: () => void }) {
                   draft={draft}
                   setDraft={setDraft}
                   options={data.designOptions}
+                  branding={data.branding}
                   saving={saving}
                   onSubmit={createPost}
                   onRandomize={randomize}
@@ -1502,6 +1505,7 @@ function Studio({
   draft,
   setDraft,
   options,
+  branding,
   saving,
   onSubmit,
   onRandomize,
@@ -1509,6 +1513,7 @@ function Studio({
   draft: Draft;
   setDraft: (draft: Draft) => void;
   options: Dashboard['designOptions'];
+  branding: Dashboard['branding'];
   saving: boolean;
   onSubmit: (event: FormEvent) => void;
   onRandomize: () => void;
@@ -1624,7 +1629,7 @@ function Studio({
           <span>Live preview</span>
           <i>1080 × {draft.format === 'reel' ? '1920' : '1350'}</i>
         </div>
-        <VisualPreview draft={draft} />
+        <VisualPreview draft={draft} branding={branding} />
         <div className="preview-specs">
           <span>{draft.design.growth?.recipe || draft.design.template}</span>
           <span>{draft.design.animation}</span>

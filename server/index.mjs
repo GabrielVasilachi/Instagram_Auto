@@ -33,6 +33,7 @@ import {
   updateSettings,
 } from './database.mjs';
 import { captionFor, POST_TIME, POST_WEEKDAYS, REEL_TIMES } from './content-plan.mjs';
+import { brandName, brandUsername } from './branding.mjs';
 import { DESIGN_OPTIONS, normalizeAccent, normalizeDesign, sanitizeText } from './design.mjs';
 import { calculatePerformanceScore, GROWTH_VERSION, growthDesignFor } from './growth-engine.mjs';
 import {
@@ -217,7 +218,7 @@ function normalizePostInput(body, existing = null) {
 
 async function profile() {
   if (accountCache.value && accountCache.expiresAt > Date.now()) return accountCache.value;
-  let value = { connected: false, username: 'silentforward', accountType: 'BUSINESS' };
+  let value = { connected: false, username: brandUsername, accountType: 'BUSINESS' };
   if (process.env.INSTAGRAM_ACCESS_TOKEN) {
     try {
       const remote = await instagramRequest('me', {
@@ -240,6 +241,7 @@ app.get('/api/dashboard', async (_request, response) => {
   ]);
   response.json({
     account,
+    branding: { name: brandName, username: brandUsername },
     publishingReady: cloudinaryConfigured() && instagramConfigured(),
     automation: {
       configured: Boolean(process.env.SCHEDULER_SECRET),

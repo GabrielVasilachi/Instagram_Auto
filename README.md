@@ -1,62 +1,29 @@
 # Silent Forward Studio
 
-A private dashboard that prepares, schedules, renders, and publishes Instagram posts and Reels without a laptop running in the background.
+This app creates and schedules Instagram posts, Reels, and Stories for **one Instagram account per installation**. The dashboard shows your calendar and results. With Vercel and Supabase set up, automatic publishing keeps running when your computer is off.
 
-## Production architecture
+## First-time setup
 
-- Vercel: React dashboard and Node.js publishing worker
-- Supabase: Postgres queue, settings, worker lease, health state, and one-minute Cron
-- Cloudinary: public media hosting
-- Instagram Graph API: publishing
+You need [Node.js 22](https://nodejs.org/), Git, an Instagram **Business account**, and your own accounts with [Meta for Developers](https://developers.facebook.com/), [Supabase](https://supabase.com/), [Cloudinary](https://cloudinary.com/), and [Vercel](https://vercel.com/). Personal Instagram accounts cannot use this integration. This app also publishes Stories, so use a Business account. See the [account setup guide](REMOTE_DEPLOYMENT.md).
 
-See [REMOTE_DEPLOYMENT.md](REMOTE_DEPLOYMENT.md) for production setup and verification.
+1. Download the project and open its folder:
 
-## Local development
+   ```bash
+   git clone https://github.com/GabrielVasilachi/Instagram_Auto.git
+   cd Instagram_Auto
+   ```
 
-Copy `.env.example` to `.env`, add development credentials, then run:
+2. Create a Supabase project. In its **SQL Editor**, run the four files in [`supabase/migrations`](supabase/migrations) in filename order.
+3. Copy the settings file and fill in **your own** values. In Windows PowerShell, use `Copy-Item .env.example .env` instead of `cp`.
 
-```bash
-npm install
-npm run dev
-```
+   ```bash
+   cp .env.example .env
+   npm ci
+   npm run dev
+   ```
 
-Open `http://127.0.0.1:5173` and sign in with the `ADMIN_PASSWORD` value from `.env`.
-The local API accepts the Vite development origin even though the UI and API use different
-ports. Restart `npm run dev` after changing the password.
+4. Open `http://127.0.0.1:5173` and sign in with the `ADMIN_PASSWORD` from `.env`. Press `Ctrl+C` in the terminal to stop the app.
 
-Production scheduling is owned exclusively by Supabase Cron. The local worker is disabled by
-default so opening the dashboard cannot duplicate remote publishing. Only set
-`ENABLE_LOCAL_WORKER=true` when intentionally testing the complete worker locally.
+Keep `.env` private. Do not publish it or use someone else's token without their permission. Set `INSTAGRAM_USERNAME` to your account name without `@`; `BRAND_NAME` is printed on generated media. Before publishing, check that the dashboard shows your account and preview the content. The sample text in [`content/quotes.json`](content/quotes.json) is in English and can be replaced with your own.
 
-The default editorial cadence is three Reels per day (`09:00`, `15:30`, `21:00`) and two static
-posts per week (Tuesday and Saturday at `11:00`) in the configured timezone.
-
-Every successful feed publication also creates a dedicated 9:16 promotional Story. Story delivery
-has its own persisted state and retry schedule, so a temporary Story error can never cause the Reel
-or feed post to be published twice.
-
-## Growth engine
-
-Autopilot uses original content rather than reposting other creators. Every Reel follows a short
-three-act structure: an immediate hook, the core message, and a save/share/follow prompt. Captions
-are matched to the message pillar and use a small set of relevant hashtags instead of generic spam.
-
-After publication, the remote worker reads Instagram Insights (views, reach, average watch time,
-shares, saves, likes, and comments) and stores a normalized performance score with the post. Future
-content uses a controlled explore/exploit strategy: 75% of eligible slots reuse the strongest visual
-recipes and 25% test a different recipe. Low-reach results are confidence-weighted so one small post
-cannot distort the schedule. Historical posts are mapped to their nearest recipe, allowing the engine
-to learn before every item has the new growth metadata.
-
-The `Growth Lab` page exposes the measured signals and recipe ranking. Insights are refreshed by the
-one-minute worker, while the authenticated `POST /api/insights/refresh` endpoint can backfill up to
-five older publications during maintenance.
-
-## Checks
-
-```bash
-npm test
-npm run build
-```
-
-The test suite renders both an image and a Reel, verifies bundled fonts and text, checks Instagram container readiness, retries, authentication, and timezone handling.
+Running locally opens the dashboard. Follow [REMOTE_DEPLOYMENT.md](REMOTE_DEPLOYMENT.md) for publishing that runs continuously, and [VIDEO_EDITOR.md](VIDEO_EDITOR.md) for video editing.

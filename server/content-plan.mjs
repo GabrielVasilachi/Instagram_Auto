@@ -1,3 +1,5 @@
+import { brandUsername } from './branding.mjs';
+
 export const REEL_TIMES = ['09:00', '15:30', '21:00'];
 export const POST_TIME = '11:00';
 export const POST_WEEKDAYS = [2, 6];
@@ -42,10 +44,10 @@ const closers = [
 ];
 
 const callsToAction = [
-  'Follow @silentforward for daily discipline and perspective.',
+  `Follow @${brandUsername} for daily discipline and perspective.`,
   'Save this and come back when you need the reminder.',
   'Share this with someone who refuses to stop.',
-  'Follow @silentforward and build quietly with us.',
+  `Follow @${brandUsername} and build quietly with us.`,
 ];
 
 const pillarContext = {
@@ -60,15 +62,14 @@ const pillarContext = {
 };
 
 const pillarHashtags = {
-  discipline: '#discipline #consistency #dailyhabits #selfmastery #motivation #silentforward',
-  focus: '#focus #deepwork #mentalclarity #productivity #mindset #silentforward',
-  resilience: '#resilience #keepgoing #mentalstrength #personalgrowth #motivation #silentforward',
-  'self-respect': '#selfrespect #selfworth #boundaries #confidence #mindset #silentforward',
-  courage: '#courage #fearlessmindset #takeaction #growthmindset #motivation #silentforward',
-  growth: '#personalgrowth #progress #growthmindset #betterself #motivation #silentforward',
-  'quiet-confidence':
-    '#quietconfidence #confidence #selfbelief #innerstrength #mindset #silentforward',
-  purpose: '#purpose #direction #intentionality #focus #personaldevelopment #silentforward',
+  discipline: '#discipline #consistency #dailyhabits #selfmastery #motivation',
+  focus: '#focus #deepwork #mentalclarity #productivity #mindset',
+  resilience: '#resilience #keepgoing #mentalstrength #personalgrowth #motivation',
+  'self-respect': '#selfrespect #selfworth #boundaries #confidence #mindset',
+  courage: '#courage #fearlessmindset #takeaction #growthmindset #motivation',
+  growth: '#personalgrowth #progress #growthmindset #betterself #motivation',
+  'quiet-confidence': '#quietconfidence #confidence #selfbelief #innerstrength #mindset',
+  purpose: '#purpose #direction #intentionality #focus #personaldevelopment',
 };
 
 export function captionFor(quote, format, cursor, growth = {}) {
@@ -78,5 +79,5 @@ export function captionFor(quote, format, cursor, growth = {}) {
     .split(' ')
     .slice(0, 2)
     .join(' ');
-  return `${cursor % 2 === 0 ? context : closers[Math.floor(cursor / 2) % closers.length]}${cursor % 5 === 0 ? '\n\nRemember this.' : ''}\n\n${hashtags} #silentforward`;
+  return `${cursor % 2 === 0 ? context : closers[Math.floor(cursor / 2) % closers.length]}${cursor % 5 === 0 ? '\n\nRemember this.' : ''}\n\n${hashtags} #${brandUsername.replace(/\./g, '')}`;
 }

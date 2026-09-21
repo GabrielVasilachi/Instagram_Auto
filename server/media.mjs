@@ -7,6 +7,7 @@ import { mkdir, unlink, rename, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { DESIGN_OPTIONS, normalizeAccent, normalizeDesign, sanitizeText } from './design.mjs';
+import { brandName, brandUsername } from './branding.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const fontDirectory = path.join(root, 'assets', 'fonts');
@@ -84,11 +85,11 @@ function themeSvg(template, width, height) {
 function backgroundSvg(post, width, height, design) {
   const light = design.template === 'paper';
   const topLabel = post.storyPromotion
-    ? `NEW ${post.storyPromotion} · SILENT FORWARD`
-    : 'SILENT FORWARD';
+    ? `NEW ${post.storyPromotion} · ${brandName.toUpperCase()}`
+    : brandName.toUpperCase();
   const bottomLabel = post.storyPromotion
-    ? 'WATCH NOW ON PROFILE · @silentforward'
-    : '@silentforward';
+    ? `WATCH NOW ON PROFILE · @${brandUsername}`
+    : `@${brandUsername}`;
   const topY = post.format === 'reel' ? 260 : 105;
   const bottomY = post.format === 'reel' ? height - 400 : height - 70;
   return Buffer.from(`<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">${themeSvg(design.template, width, height)}
@@ -96,8 +97,8 @@ function backgroundSvg(post, width, height, design) {
     <radialGradient id="vignette"><stop offset=".45" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".3"/></radialGradient>
     <rect width="100%" height="100%" filter="url(#filmGrain)" opacity=".45"/><rect width="100%" height="100%" fill="url(#vignette)"/>
     <rect width="100%" height="100%" fill="#000" opacity="${design.overlayOpacity / 100}"/>
-    <text x="90" y="${topY}" fill="${light ? '#4f4a43' : '#8b9096'}" font-family="sans-serif" font-size="18" font-weight="700" letter-spacing="${post.storyPromotion ? 4 : 7}">${topLabel}</text>
-    <text x="90" y="${bottomY}" fill="${light ? '#5e5850' : '#73787e'}" font-family="sans-serif" font-size="20" font-weight="${post.storyPromotion ? 700 : 400}" letter-spacing="${post.storyPromotion ? 2 : 0}">${bottomLabel}</text>
+    <text x="90" y="${topY}" fill="${light ? '#4f4a43' : '#8b9096'}" font-family="sans-serif" font-size="18" font-weight="700" letter-spacing="${post.storyPromotion ? 4 : 7}">${escapeXml(topLabel)}</text>
+    <text x="90" y="${bottomY}" fill="${light ? '#5e5850' : '#73787e'}" font-family="sans-serif" font-size="20" font-weight="${post.storyPromotion ? 700 : 400}" letter-spacing="${post.storyPromotion ? 2 : 0}">${escapeXml(bottomLabel)}</text>
   </svg>`);
 }
 

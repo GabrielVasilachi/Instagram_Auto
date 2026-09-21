@@ -1,56 +1,22 @@
-# Remote deployment
+# Automatic publishing for your account
 
-Production uses four services, all independent of the local laptop:
+Each person needs **their own Supabase project, Cloudinary account, Meta app, and Vercel site**. One installation publishes to one Instagram account. Do not put your Instagram password in this project.
 
-- Vercel serves the private dashboard and the Node.js publishing worker.
-- Supabase stores settings, the queue, worker state, and the one-minute cron job.
-- Cloudinary stores the rendered image or Reel at a public HTTPS URL.
-- Instagram Graph API creates and publishes the Instagram media container.
+1. In [Meta for Developers](https://developers.facebook.com/), create an app with **Instagram API with Instagram Login** and connect your Instagram Business account. Get an access token with `instagram_business_basic` and `instagram_business_content_publish`, plus your account ID. Put them in `INSTAGRAM_ACCESS_TOKEN` and `INSTAGRAM_ACCOUNT_ID`. To use someone else's account, that person must authorize the app; Meta may require additional access for people outside your app roles. See [Meta's Instagram Login guide](https://www.postman.com/meta/instagram/folder/1z5vxzu/instagram-api-with-instagram-login).
+2. In [Supabase](https://supabase.com/), create a project and run the four files in [`supabase/migrations`](supabase/migrations) in filename order. Copy the **Project URL** and `sb_secret_...` key into `SUPABASE_URL` and `SUPABASE_SECRET_KEY`.
+3. In [Cloudinary](https://cloudinary.com/), copy your cloud name, API key, and API secret into the three `CLOUDINARY_*` fields in [`.env.example`](.env.example).
+4. Fork this project on GitHub and import your fork into [Vercel](https://vercel.com/). Under **Environment Variables**, add every value from `.env.example` except `API_PORT` and `ENABLE_LOCAL_WORKER`. Choose an `ADMIN_PASSWORD` for the dashboard and two different, long values for `SESSION_SECRET` and `SCHEDULER_SECRET`. Run this command once for each secret. Set `INSTAGRAM_USERNAME` without `@` and `BRAND_NAME` for the text on generated media. Deploy and open your new Vercel URL.
 
-GitHub Actions is intentionally manual-only. It is a recovery button, not the production clock.
+   ```bash
+   node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
+   ```
 
-## Vercel environment
+5. In **Supabase → Vault**, add `publisher_worker_url` with `https://YOUR-VERCEL-URL/api/worker/run`, and `publisher_scheduler_secret` with the same value as Vercel's `SCHEDULER_SECRET`. In **SQL Editor**, run:
 
-Configure these variables for Production, Preview, and Development when appropriate:
+   ```sql
+   select public.install_remote_publisher_schedule();
+   ```
 
-- `SUPABASE_URL`
-- `SUPABASE_SECRET_KEY`
-- `CLOUDINARY_CLOUD_NAME`
-- `CLOUDINARY_API_KEY`
-- `CLOUDINARY_API_SECRET`
-- `INSTAGRAM_ACCESS_TOKEN`
-- `INSTAGRAM_ACCOUNT_ID`
-- `ADMIN_PASSWORD`
-- `SESSION_SECRET`
-- `SCHEDULER_SECRET`
+Supabase now checks the schedule every minute. In the dashboard, check the Instagram account name and last worker run under **Settings**, then schedule a test post. When it looks right, turn on **Autopilot** under **Automation**. It prepares three Reels a day and two posts a week in your selected time zone; each publication also creates a Story. Leave `ENABLE_LOCAL_WORKER` off when online automation is active.
 
-`SCHEDULER_SECRET` must be a long random value used only by Supabase Cron. The worker endpoint accepts it through the `X-Scheduler-Secret` header.
-
-## Supabase setup
-
-1. Apply the migrations in `supabase/migrations` in filename order.
-2. Open Supabase Vault and create these encrypted secrets:
-   - `publisher_worker_url`: `https://instagram-auto-xi.vercel.app/api/worker/run`
-   - `publisher_scheduler_secret`: the same value as Vercel `SCHEDULER_SECRET`
-3. Run:
-
-```sql
-select public.install_remote_publisher_schedule();
-```
-
-The installed cron job calls Vercel once per minute. The worker uses a database lease so overlapping HTTP calls cannot publish the same item or fill the automatic queue twice.
-
-## Verification
-
-The dashboard shows the last worker run. A healthy installation updates that timestamp every minute even when no post is due.
-
-For a direct check, inspect the latest `pg_net` responses:
-
-```sql
-select id, status_code, error_msg, created
-from net._http_response
-order by created desc
-limit 20;
-```
-
-The manual GitHub workflow can still be started from Actions if Supabase Cron or Vercel has a temporary incident.
+Meta tokens can expire. If the Instagram connection stops working, get a new token, update `INSTAGRAM_ACCESS_TOKEN` in Vercel, and redeploy. The app does not refresh tokens automatically.
