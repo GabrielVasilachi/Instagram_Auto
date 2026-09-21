@@ -1,64 +1,81 @@
 export function instagramConfigured() {
-  return Boolean(process.env.INSTAGRAM_ACCESS_TOKEN && process.env.INSTAGRAM_ACCOUNT_ID)
+  return Boolean(process.env.INSTAGRAM_ACCESS_TOKEN && process.env.INSTAGRAM_ACCOUNT_ID);
 }
 
 export async function instagramRequest(pathname, options = {}) {
-  if (!process.env.INSTAGRAM_ACCESS_TOKEN) throw new Error('Tokenul Instagram lipsește.')
-  const url = new URL(`https://graph.instagram.com/${pathname.replace(/^\//, '')}`)
-  const parameters = { ...(options.parameters || {}), access_token: process.env.INSTAGRAM_ACCESS_TOKEN }
-  for (const [key, value] of Object.entries(parameters)) url.searchParams.set(key, String(value))
-  const response = await fetch(url, { method: options.method || 'GET' })
-  const result = await response.json()
-  if (!response.ok || result.error) throw new Error(result.error?.message || 'Instagram API a returnat o eroare.')
-  return result
+  if (!process.env.INSTAGRAM_ACCESS_TOKEN) throw new Error('Tokenul Instagram lipsește.');
+  const url = new URL(`https://graph.instagram.com/${pathname.replace(/^\//, '')}`);
+  const parameters = {
+    ...(options.parameters || {}),
+    access_token: process.env.INSTAGRAM_ACCESS_TOKEN,
+  };
+  for (const [key, value] of Object.entries(parameters)) url.searchParams.set(key, String(value));
+  const response = await fetch(url, { method: options.method || 'GET' });
+  const result = await response.json();
+  if (!response.ok || result.error)
+    throw new Error(result.error?.message || 'Instagram API a returnat o eroare.');
+  return result;
 }
 
 export async function waitForContainer(containerId) {
   for (let attempt = 0; attempt < 36; attempt += 1) {
-    const status = await instagramRequest(containerId, { parameters: { fields: 'status_code,status' } })
-    if (status.status_code === 'FINISHED') return
-    if (status.status_code === 'ERROR' || status.status_code === 'EXPIRED') throw new Error(status.status || 'Instagram nu a procesat videoclipul.')
-    await new Promise((resolve) => setTimeout(resolve, 5000))
+    const status = await instagramRequest(containerId, {
+      parameters: { fields: 'status_code,status' },
+    });
+    if (status.status_code === 'FINISHED') return;
+    if (status.status_code === 'ERROR' || status.status_code === 'EXPIRED')
+      throw new Error(status.status || 'Instagram nu a procesat videoclipul.');
+    await new Promise((resolve) => setTimeout(resolve, 5000));
   }
-  throw new Error('Instagram procesează videoclipul prea mult timp.')
+  throw new Error('Instagram procesează videoclipul prea mult timp.');
 }
 
 export async function publishToInstagram(post, publicUrl) {
-  const accountId = process.env.INSTAGRAM_ACCOUNT_ID
-  if (!accountId) throw new Error('Instagram Account ID lipsește.')
-  const parameters = post.format === 'reel'
-    ? { media_type: 'REELS', video_url: publicUrl, caption: post.caption, share_to_feed: 'true' }
-    : { image_url: publicUrl, caption: post.caption }
-  const container = await instagramRequest(`${accountId}/media`, { method: 'POST', parameters })
+  const accountId = process.env.INSTAGRAM_ACCOUNT_ID;
+  if (!accountId) throw new Error('Instagram Account ID lipsește.');
+  const parameters =
+    post.format === 'reel'
+      ? { media_type: 'REELS', video_url: publicUrl, caption: post.caption, share_to_feed: 'true' }
+      : { image_url: publicUrl, caption: post.caption };
+  const container = await instagramRequest(`${accountId}/media`, { method: 'POST', parameters });
   // Images can also remain IN_PROGRESS briefly after Meta accepts their URL.
   // Publishing before FINISHED produces the misleading "Media ID is not available" error.
-  await waitForContainer(container.id)
-  return instagramRequest(`${accountId}/media_publish`, { method: 'POST', parameters: { creation_id: container.id } })
+  await waitForContainer(container.id);
+  return instagramRequest(`${accountId}/media_publish`, {
+    method: 'POST',
+    parameters: { creation_id: container.id },
+  });
 }
 
 export async function publishStoryToInstagram(publicUrl) {
-  const accountId = process.env.INSTAGRAM_ACCOUNT_ID
-  if (!accountId) throw new Error('Instagram Account ID lipsește.')
+  const accountId = process.env.INSTAGRAM_ACCOUNT_ID;
+  if (!accountId) throw new Error('Instagram Account ID lipsește.');
   const container = await instagramRequest(`${accountId}/media`, {
     method: 'POST',
     parameters: { media_type: 'STORIES', video_url: publicUrl },
-  })
-  await waitForContainer(container.id)
-  return instagramRequest(`${accountId}/media_publish`, { method: 'POST', parameters: { creation_id: container.id } })
+  });
+  await waitForContainer(container.id);
+  return instagramRequest(`${accountId}/media_publish`, {
+    method: 'POST',
+    parameters: { creation_id: container.id },
+  });
 }
 
 export async function fetchMediaInsights(post) {
-  if (!post?.instagramMediaId) throw new Error('Media ID lipsește pentru Insights.')
-  const metricNames = post.format === 'reel'
-    ? ['views', 'reach', 'likes', 'comments', 'shares', 'saved', 'ig_reels_avg_watch_time']
-    : ['views', 'reach', 'likes', 'comments', 'shares', 'saved']
+  if (!post?.instagramMediaId) throw new Error('Media ID lipsește pentru Insights.');
+  const metricNames =
+    post.format === 'reel'
+      ? ['views', 'reach', 'likes', 'comments', 'shares', 'saved', 'ig_reels_avg_watch_time']
+      : ['views', 'reach', 'likes', 'comments', 'shares', 'saved'];
   const result = await instagramRequest(`${post.instagramMediaId}/insights`, {
     parameters: { metric: metricNames.join(',') },
-  })
-  const values = Object.fromEntries((result.data ?? []).map((item) => [
-    item.name,
-    Number(item.values?.[0]?.value ?? item.total_value?.value ?? 0) || 0,
-  ]))
+  });
+  const values = Object.fromEntries(
+    (result.data ?? []).map((item) => [
+      item.name,
+      Number(item.values?.[0]?.value ?? item.total_value?.value ?? 0) || 0,
+    ]),
+  );
   return {
     views: values.views ?? 0,
     reach: values.reach ?? 0,
@@ -67,5 +84,5 @@ export async function fetchMediaInsights(post) {
     shares: values.shares ?? 0,
     saved: values.saved ?? 0,
     averageWatchTimeMs: values.ig_reels_avg_watch_time ?? 0,
-  }
+  };
 }

@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from 'react'
-import { dimensions, durationOf } from './model'
-import type { ExportResult, ExportSettings, Project } from './types'
-import { exportProject, sendToPlanner } from './export'
-import { Icon } from './Icon'
+import { useEffect, useRef, useState } from 'react';
+import { dimensions, durationOf } from './model';
+import type { ExportResult, ExportSettings, Project } from './types';
+import { exportProject, sendToPlanner } from './export';
+import { Icon } from './Icon';
 
 export function ExportModal({ project, onClose }: { project: Project; onClose: () => void }) {
   const [settings, setSettings] = useState<ExportSettings>({
@@ -10,51 +10,51 @@ export function ExportModal({ project, onClose }: { project: Project; onClose: (
       fps: project.fps,
       quality: 'high',
     }),
-    [busy, setBusy] = useState(false)
+    [busy, setBusy] = useState(false);
   const [phase, setPhase] = useState(''),
     [progress, setProgress] = useState(0),
     [error, setError] = useState(''),
-    [result, setResult] = useState<ExportResult | null>(null)
+    [result, setResult] = useState<ExportResult | null>(null);
   const [planner, setPlanner] = useState(false),
     [caption, setCaption] = useState(''),
     [scheduled, setScheduled] = useState(''),
     [sent, setSent] = useState(false),
-    [sending, setSending] = useState(false)
-  const [capability, setCapability] = useState<{ available: boolean; cloud: boolean } | null>(null)
+    [sending, setSending] = useState(false);
+  const [capability, setCapability] = useState<{ available: boolean; cloud: boolean } | null>(null);
   const controller = useRef<AbortController | null>(null),
     dialog = useRef<HTMLDivElement>(null),
-    download = useRef<HTMLAnchorElement>(null)
+    download = useRef<HTMLAnchorElement>(null);
   useEffect(() => {
-    const previous = document.activeElement as HTMLElement
-    dialog.current?.focus()
+    const previous = document.activeElement as HTMLElement;
+    dialog.current?.focus();
     fetch('/api/video-editor/capabilities')
       .then(async (r) => {
         if (!r.ok)
           throw new Error(
             'Could not check export availability. Sign in again if your session expired.',
-          )
-        setCapability(await r.json())
+          );
+        setCapability(await r.json());
       })
-      .catch((e) => setError(e.message))
+      .catch((e) => setError(e.message));
     return () => {
-      controller.current?.abort()
-      previous?.focus()
-    }
-  }, [])
+      controller.current?.abort();
+      previous?.focus();
+    };
+  }, []);
   async function start() {
-    setBusy(true)
-    setError('')
-    setResult(null)
-    setPhase('Preparing project')
-    setProgress(0)
-    controller.current = new AbortController()
+    setBusy(true);
+    setError('');
+    setResult(null);
+    setPhase('Preparing project');
+    setProgress(0);
+    controller.current = new AbortController();
     try {
       setResult(
         await exportProject(project, settings, controller.current.signal, (label, value) => {
-          setPhase(label)
-          setProgress(Math.round(value))
+          setPhase(label);
+          setProgress(Math.round(value));
         }),
-      )
+      );
     } catch (reason) {
       setError(
         controller.current.signal.aborted
@@ -62,18 +62,18 @@ export function ExportModal({ project, onClose }: { project: Project; onClose: (
           : reason instanceof Error
             ? reason.message
             : 'Export failed.',
-      )
+      );
     } finally {
-      setBusy(false)
+      setBusy(false);
     }
   }
   const size = dimensions(project.ratio, settings.resolution),
-    reel = project.ratio === '9:16' && durationOf(project) >= 3
+    reel = project.ratio === '9:16' && durationOf(project) >= 3;
   return (
     <div
       className="ve-modal-backdrop"
       onMouseDown={(event) => {
-        if (event.target === event.currentTarget && !busy && !sending) onClose()
+        if (event.target === event.currentTarget && !busy && !sending) onClose();
       }}
     >
       <div
@@ -84,28 +84,28 @@ export function ExportModal({ project, onClose }: { project: Project; onClose: (
         tabIndex={-1}
         ref={dialog}
         onKeyDown={(event) => {
-          if (event.key === 'Escape' && !busy && !sending) onClose()
+          if (event.key === 'Escape' && !busy && !sending) onClose();
           if (event.key === 'Tab') {
             const controls = Array.from(
               event.currentTarget.querySelectorAll<HTMLElement>(
                 'button:not(:disabled), input, textarea, select:not(:disabled), a[href]',
               ),
-            ).filter((el) => !el.hidden)
+            ).filter((el) => !el.hidden);
             const first = controls[0],
-              last = controls.at(-1)
+              last = controls.at(-1);
             if (
               event.shiftKey &&
               (document.activeElement === first || document.activeElement === event.currentTarget)
             ) {
-              event.preventDefault()
-              last?.focus()
+              event.preventDefault();
+              last?.focus();
             }
             if (!event.shiftKey && document.activeElement === last) {
-              event.preventDefault()
-              first?.focus()
+              event.preventDefault();
+              first?.focus();
             }
           }
-          event.stopPropagation()
+          event.stopPropagation();
         }}
       >
         <header>
@@ -218,22 +218,22 @@ export function ExportModal({ project, onClose }: { project: Project; onClose: (
               <button
                 className="ve-primary"
                 onClick={async () => {
-                  setError('')
+                  setError('');
                   try {
-                    setSending(true)
-                    const response = await fetch(result.url)
-                    if (!response.ok) throw new Error('Download failed.')
-                    const url = URL.createObjectURL(await response.blob())
-                    const a = download.current!
-                    a.href = url
-                    a.download = `${project.name.replace(/[^a-z0-9_-]/gi, '-').slice(0, 80)}.mp4`
-                    a.click()
-                    setTimeout(() => URL.revokeObjectURL(url), 30_000)
+                    setSending(true);
+                    const response = await fetch(result.url);
+                    if (!response.ok) throw new Error('Download failed.');
+                    const url = URL.createObjectURL(await response.blob());
+                    const a = download.current!;
+                    a.href = url;
+                    a.download = `${project.name.replace(/[^a-z0-9_-]/gi, '-').slice(0, 80)}.mp4`;
+                    a.click();
+                    setTimeout(() => URL.revokeObjectURL(url), 30_000);
                   } catch {
-                    window.open(result.url, '_blank', 'noopener')
-                    setError('Use Save video in the opened tab to download your MP4.')
+                    window.open(result.url, '_blank', 'noopener');
+                    setError('Use Save video in the opened tab to download your MP4.');
                   } finally {
-                    setSending(false)
+                    setSending(false);
                   }
                 }}
                 disabled={sending}
@@ -264,23 +264,23 @@ export function ExportModal({ project, onClose }: { project: Project; onClose: (
               <form
                 className="ve-planner-form"
                 onSubmit={async (event) => {
-                  event.preventDefault()
-                  setSending(true)
-                  setError('')
+                  event.preventDefault();
+                  setSending(true);
+                  setError('');
                   try {
                     await sendToPlanner(
                       result,
                       project.name,
                       caption,
                       new Date(scheduled).toISOString(),
-                    )
-                    setSent(true)
+                    );
+                    setSent(true);
                   } catch (reason) {
                     setError(
                       reason instanceof Error ? reason.message : 'Could not schedule the Reel.',
-                    )
+                    );
                   } finally {
-                    setSending(false)
+                    setSending(false);
                   }
                 }}
               >
@@ -347,5 +347,5 @@ export function ExportModal({ project, onClose }: { project: Project; onClose: (
         </footer>
       </div>
     </div>
-  )
+  );
 }

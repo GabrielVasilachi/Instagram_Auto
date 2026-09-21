@@ -1,7 +1,7 @@
-import { clamp, trimClip } from './model'
-import type { Clip, TextClip } from './types'
-import type { Editor } from './useEditor'
-import { Icon } from './Icon'
+import { clamp, trimClip } from './model';
+import type { Clip, TextClip } from './types';
+import type { Editor } from './useEditor';
+import { Icon } from './Icon';
 
 function NumberField({
   label,
@@ -11,12 +11,12 @@ function NumberField({
   step = 1,
   onChange,
 }: {
-  label: string
-  value: number
-  min: number
-  max: number
-  step?: number
-  onChange: (value: number) => void
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  step?: number;
+  onChange: (value: number) => void;
 }) {
   return (
     <label>
@@ -28,12 +28,12 @@ function NumberField({
         step={step}
         value={Math.round(value * 1000) / 1000}
         onChange={(event) => {
-          const n = event.target.valueAsNumber
-          if (Number.isFinite(n)) onChange(clamp(n, min, max))
+          const n = event.target.valueAsNumber;
+          if (Number.isFinite(n)) onChange(clamp(n, min, max));
         }}
       />
     </label>
-  )
+  );
 }
 function Slider({
   label,
@@ -44,13 +44,13 @@ function Slider({
   onChange,
   editor,
 }: {
-  label: string
-  value: number
-  min: number
-  max: number
-  step?: number
-  onChange: (value: number) => void
-  editor: Editor
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  step?: number;
+  onChange: (value: number) => void;
+  editor: Editor;
 }) {
   return (
     <label className="ve-slider">
@@ -72,21 +72,21 @@ function Slider({
         onChange={(event) => onChange(Number(event.target.value))}
       />
     </label>
-  )
+  );
 }
 export function Inspector({ editor: e }: { editor: Editor }) {
-  const clip = e.project.clips.find((c) => c.id === e.selected)
-  const update = (fn: (c: Clip) => Clip) => clip && e.updateClip(clip.id, fn)
+  const clip = e.project.clips.find((c) => c.id === e.selected);
+  const update = (fn: (c: Clip) => Clip) => clip && e.updateClip(clip.id, fn);
   const text = (values: Partial<TextClip['text']>) =>
-    update((c) => (c.kind === 'text' ? { ...c, text: { ...c.text, ...values } } : c))
+    update((c) => (c.kind === 'text' ? { ...c, text: { ...c.text, ...values } } : c));
   const transform = (values: Partial<Clip['transform']>) =>
-    update((c) => ({ ...c, transform: { ...c.transform, ...values } }))
+    update((c) => ({ ...c, transform: { ...c.transform, ...values } }));
   const audio = (values: Partial<Clip['audio']>) =>
-    update((c) => ({ ...c, audio: { ...c.audio, ...values } }))
+    update((c) => ({ ...c, audio: { ...c.audio, ...values } }));
   const visual = clip && clip.kind !== 'audio',
-    locked = e.project.tracks.find((t) => t.id === clip?.track)?.locked
+    locked = e.project.tracks.find((t) => t.id === clip?.track)?.locked;
   const asset =
-    clip && clip.kind !== 'text' ? e.project.assets.find((a) => a.id === clip.assetId) : undefined
+    clip && clip.kind !== 'text' ? e.project.assets.find((a) => a.id === clip.assetId) : undefined;
   return (
     <aside className="ve-inspector">
       <div className="ve-panel-heading">
@@ -169,9 +169,9 @@ export function Inspector({ editor: e }: { editor: Editor }) {
                 <select
                   value={clip.track}
                   onChange={(event) => {
-                    const track = event.target.value as 'video' | 'overlay'
+                    const track = event.target.value as 'video' | 'overlay';
                     if (!e.project.tracks.find((t) => t.id === track)?.locked)
-                      update((c) => ({ ...c, track }))
+                      update((c) => ({ ...c, track }));
                   }}
                 >
                   <option value="video">V1 · Video</option>
@@ -434,12 +434,12 @@ export function Inspector({ editor: e }: { editor: Editor }) {
                   aria-label="Speed"
                   value={clip.speed}
                   onChange={(event) => {
-                    const speed = Number(event.target.value)
+                    const speed = Number(event.target.value);
                     update((c) => ({
                       ...c,
                       speed,
                       duration: Math.min(180 - c.start, (c.duration * c.speed) / speed),
-                    }))
+                    }));
                   }}
                 >
                   {[0.25, 0.5, 0.75, 1, 1.25, 1.5, 2].map((n) => (
@@ -513,14 +513,14 @@ export function Inspector({ editor: e }: { editor: Editor }) {
                   <select
                     value={clip.transition}
                     onChange={(event) => {
-                      const transition = event.target.value as Clip['transition']
+                      const transition = event.target.value as Clip['transition'];
                       e.edit((p) => {
                         const prior = p.clips
                           .filter(
                             (c) =>
                               c.track === clip.track && c.id !== clip.id && c.start < clip.start,
                           )
-                          .sort((a, b) => b.start - a.start)[0]
+                          .sort((a, b) => b.start - a.start)[0];
                         return {
                           ...p,
                           clips: p.clips.map((c) =>
@@ -545,8 +545,8 @@ export function Inspector({ editor: e }: { editor: Editor }) {
                                 }
                               : c,
                           ),
-                        }
-                      })
+                        };
+                      });
                     }}
                   >
                     <option value="none">None</option>
@@ -574,5 +574,5 @@ export function Inspector({ editor: e }: { editor: Editor }) {
         </fieldset>
       )}
     </aside>
-  )
+  );
 }

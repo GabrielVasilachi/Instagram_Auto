@@ -1670,43 +1670,171 @@
 
 /* Shared light product shell; the media canvas retains its actual output colors. */
 .ve-app input:not([type='range']):not([type='checkbox']),
-.ve-app select, .ve-app textarea { min-height: 32px; border-radius: 8px; background: #fff; }
-.ve-app input:focus, .ve-app select:focus, .ve-app textarea:focus { border-color: #9b92ec; box-shadow: 0 0 0 3px #eeebff; }
-.ve-app input[type='range'] { min-height: 16px; padding: 0; box-shadow: none; }
-.ve-app input[type='checkbox'] { min-height: 16px; width: 16px; }
-.ve-app button { border-radius: 7px; transition: background .18s, color .18s; }
-.ve-app button:hover:not(:disabled) { background: #eeedff; color: #4137c7; }
-.ve-app button:disabled { opacity: .45; }
-.ve-app .ve-primary, .ve-brand-mark, .ve-app .ve-play { background: #5046e5; color: #fff; }
-.ve-app .ve-primary:hover:not(:disabled), .ve-app .ve-play:hover:not(:disabled) { background: #4137c7; color: #fff; }
-.ve-app .ve-active { background: #eeedff; }
-.ve-app .ve-import-button { background: #f4f3ff; border-color: #dcd8fb; color: #5046e5; }
-.ve-divider { background: #e7e9ef; }
-.ve-header, .ve-playback, .ve-timeline-tools { background: #fff; }
-.ve-preview { background: #f7f8fa; }
-.ve-notice { background: #fff8ed; border-color: #f1dfbd; color: #936521; }
-.ve-project-title > .ve-saved i { background: #399675; }
-.ve-panel-heading small, .ve-brand small, .ve-project-title > span,
-.ve-media-item > small, .ve-library-footnote, .ve-import-empty small,
-.ve-timeline-footer, .ve-export-modal header small { font-size: 10px; }
-.ve-app .ve-library-tabs button, .ve-inspector label, .ve-app .ve-segments button { font-size: 10px; }
-.ve-media-thumb { background: #eef0f5; color: #697386; }
-.ve-media-thumb > span { background: #202738c9; color: #fff; }
-.ve-app .ve-media-thumb button { background: #fff; color: #5046e5; }
-.ve-import-empty > div, .ve-export-symbol { background: #eeedff; color: #5046e5; }
-.ve-canvas-empty { color: #8992a2; }
-.ve-canvas-empty strong, .ve-canvas-empty span { color: #bbc1cc; }
-.ve-stage:fullscreen, .ve-result-video { background: #101113; }
-.ve-track-code, .ve-track-code.ve-text, .ve-track-code.ve-overlay { color: #6258b9; }
-.ve-track-code.ve-audio { color: #34745a; }
-.ve-clip { background: #dde5f8; border-color: #a9bae7; color: #35497b; }
-.ve-clip-text, .ve-clip-image { background: #e9e3f8; border-color: #c5b5e5; color: #604980; }
-.ve-clip-audio { background: #e0eee8; border-color: #a1c9b7; color: #285c44; }
-.ve-clip-name { background: #f7f8face; }
-.ve-clip.ve-selected { outline-color: #5046e5; border-color: #5046e5; }
-.ve-trim-handle:after { background: #fff; }
-.ve-playhead { box-shadow: none; }
-.ve-export-modal { background: #fff; }
-.ve-app .ve-error { background: #fff2f2; color: #aa4049; border-color: #f2cfd3; }
-.ve-success { color: #287657 !important; }
-@media (prefers-reduced-motion: reduce) { .ve-app * { transition: none !important; } }
+.ve-app select,
+.ve-app textarea {
+  min-height: 32px;
+  border-radius: 8px;
+  background: #fff;
+}
+.ve-app input:focus,
+.ve-app select:focus,
+.ve-app textarea:focus {
+  border-color: #9b92ec;
+  box-shadow: 0 0 0 3px #eeebff;
+}
+.ve-app input[type='range'] {
+  min-height: 16px;
+  padding: 0;
+  box-shadow: none;
+}
+.ve-app input[type='checkbox'] {
+  min-height: 16px;
+  width: 16px;
+}
+.ve-app button {
+  border-radius: 7px;
+  transition:
+    background 0.18s,
+    color 0.18s;
+}
+.ve-app button:hover:not(:disabled) {
+  background: #eeedff;
+  color: #4137c7;
+}
+.ve-app button:disabled {
+  opacity: 0.45;
+}
+.ve-app .ve-primary,
+.ve-brand-mark,
+.ve-app .ve-play {
+  background: #5046e5;
+  color: #fff;
+}
+.ve-app .ve-primary:hover:not(:disabled),
+.ve-app .ve-play:hover:not(:disabled) {
+  background: #4137c7;
+  color: #fff;
+}
+.ve-app .ve-active {
+  background: #eeedff;
+}
+.ve-app .ve-import-button {
+  background: #f4f3ff;
+  border-color: #dcd8fb;
+  color: #5046e5;
+}
+.ve-divider {
+  background: #e7e9ef;
+}
+.ve-header,
+.ve-playback,
+.ve-timeline-tools {
+  background: #fff;
+}
+.ve-preview {
+  background: #f7f8fa;
+}
+.ve-notice {
+  background: #fff8ed;
+  border-color: #f1dfbd;
+  color: #936521;
+}
+.ve-project-title > .ve-saved i {
+  background: #399675;
+}
+.ve-panel-heading small,
+.ve-brand small,
+.ve-project-title > span,
+.ve-media-item > small,
+.ve-library-footnote,
+.ve-import-empty small,
+.ve-timeline-footer,
+.ve-export-modal header small {
+  font-size: 10px;
+}
+.ve-app .ve-library-tabs button,
+.ve-inspector label,
+.ve-app .ve-segments button {
+  font-size: 10px;
+}
+.ve-media-thumb {
+  background: #eef0f5;
+  color: #697386;
+}
+.ve-media-thumb > span {
+  background: #202738c9;
+  color: #fff;
+}
+.ve-app .ve-media-thumb button {
+  background: #fff;
+  color: #5046e5;
+}
+.ve-import-empty > div,
+.ve-export-symbol {
+  background: #eeedff;
+  color: #5046e5;
+}
+.ve-canvas-empty {
+  color: #8992a2;
+}
+.ve-canvas-empty strong,
+.ve-canvas-empty span {
+  color: #bbc1cc;
+}
+.ve-stage:fullscreen,
+.ve-result-video {
+  background: #101113;
+}
+.ve-track-code,
+.ve-track-code.ve-text,
+.ve-track-code.ve-overlay {
+  color: #6258b9;
+}
+.ve-track-code.ve-audio {
+  color: #34745a;
+}
+.ve-clip {
+  background: #dde5f8;
+  border-color: #a9bae7;
+  color: #35497b;
+}
+.ve-clip-text,
+.ve-clip-image {
+  background: #e9e3f8;
+  border-color: #c5b5e5;
+  color: #604980;
+}
+.ve-clip-audio {
+  background: #e0eee8;
+  border-color: #a1c9b7;
+  color: #285c44;
+}
+.ve-clip-name {
+  background: #f7f8face;
+}
+.ve-clip.ve-selected {
+  outline-color: #5046e5;
+  border-color: #5046e5;
+}
+.ve-trim-handle:after {
+  background: #fff;
+}
+.ve-playhead {
+  box-shadow: none;
+}
+.ve-export-modal {
+  background: #fff;
+}
+.ve-app .ve-error {
+  background: #fff2f2;
+  color: #aa4049;
+  border-color: #f2cfd3;
+}
+.ve-success {
+  color: #287657 !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ve-app * {
+    transition: none !important;
+  }
+}

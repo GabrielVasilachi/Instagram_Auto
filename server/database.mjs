@@ -1,29 +1,34 @@
-import { supabase } from './supabase.mjs'
-import { normalizeDesign } from './design.mjs'
-import { withRemoteRetries } from './retry.mjs'
-import { POST_WEEKDAYS, REEL_TIMES } from './content-plan.mjs'
+import { supabase } from './supabase.mjs';
+import { normalizeDesign } from './design.mjs';
+import { withRemoteRetries } from './retry.mjs';
+import { POST_WEEKDAYS, REEL_TIMES } from './content-plan.mjs';
 
 const retryOptions = {
   attempts: 5,
   baseDelayMs: 2_000,
   onRetry: ({ attempt, delayMs, error }) => {
-    const message = error instanceof Error ? error.message : String(error?.message ?? error)
-    console.warn(`[database] ${message}. Reîncercarea ${attempt + 1}/5 începe în ${Math.round(delayMs / 1000)}s.`)
+    const message = error instanceof Error ? error.message : String(error?.message ?? error);
+    console.warn(
+      `[database] ${message}. Reîncercarea ${attempt + 1}/5 începe în ${Math.round(delayMs / 1000)}s.`,
+    );
   },
-}
+};
 
 async function databaseRequest(label, operation) {
-  return withRemoteRetries(async () => {
-    const result = await operation()
-    if (result.error) throw result.error
-    return result.data
-  }, {
-    ...retryOptions,
-    onRetry: (state) => {
-      console.warn(`[database:${label}] Cererea remote a eșuat temporar.`)
-      retryOptions.onRetry(state)
+  return withRemoteRetries(
+    async () => {
+      const result = await operation();
+      if (result.error) throw result.error;
+      return result.data;
     },
-  })
+    {
+      ...retryOptions,
+      onRetry: (state) => {
+        console.warn(`[database:${label}] Cererea remote a eșuat temporar.`);
+        retryOptions.onRetry(state);
+      },
+    },
+  );
 }
 
 function postFromDatabase(post) {
@@ -44,7 +49,7 @@ function postFromDatabase(post) {
     error: post.error,
     retryCount: post.retry_count ?? 0,
     nextAttemptAt: post.next_attempt_at ?? null,
-  }
+  };
 }
 
 function postToDatabase(post) {
@@ -65,7 +70,7 @@ function postToDatabase(post) {
     error: post.error ?? '',
     retry_count: post.retryCount ?? 0,
     next_attempt_at: post.nextAttemptAt ?? null,
-  }
+  };
 }
 
 function settingsFromDatabase(settings) {
@@ -79,11 +84,11 @@ function settingsFromDatabase(settings) {
     timezone: settings.timezone,
     queueDays: settings.queue_days,
     quoteCursor: settings.quote_cursor,
-  }
+  };
 }
 
 function workerStateFromDatabase(state) {
-  if (!state) return null
+  if (!state) return null;
   return {
     runId: state.run_id,
     source: state.source,
@@ -93,19 +98,23 @@ function workerStateFromDatabase(state) {
     lastSuccessAt: state.last_success_at,
     lastError: state.last_error,
     lastResult: state.last_result ?? {},
-  }
+  };
 }
 
 export async function loadSettings() {
-  const data = await databaseRequest('settings', () => supabase.from('app_settings').select('*').eq('id', 1).single())
-  return settingsFromDatabase(data)
+  const data = await databaseRequest('settings', () =>
+    supabase.from('app_settings').select('*').eq('id', 1).single(),
+  );
+  return settingsFromDatabase(data);
 }
 
 export async function loadDatabase() {
   const [settings, postsResult] = await Promise.all([
     loadSettings(),
-    databaseRequest('posts', () => supabase.from('posts').select('*').order('scheduled_for', { ascending: true })),
-  ])
+    databaseRequest('posts', () =>
+      supabase.from('posts').select('*').order('scheduled_for', { ascending: true }),
+    ),
+  ]);
   return {
     schemaVersion: settings.schemaVersion,
     settings: {
@@ -119,61 +128,76 @@ export async function loadDatabase() {
     },
     posts: postsResult.map(postFromDatabase),
     quoteCursor: settings.quoteCursor,
-  }
+  };
 }
 
 export async function loadWorkerState() {
-  const data = await databaseRequest('worker-state', () => supabase.from('worker_state').select('*').eq('id', 1).maybeSingle())
-  return workerStateFromDatabase(data)
+  const data = await databaseRequest('worker-state', () =>
+    supabase.from('worker_state').select('*').eq('id', 1).maybeSingle(),
+  );
+  return workerStateFromDatabase(data);
 }
 
 export async function claimWorkerLease(name, owner, leaseSeconds = 240) {
-  const data = await databaseRequest('claim-worker-lease', () => supabase.rpc('claim_worker_lease', {
-    p_name: name,
-    p_owner: owner,
-    p_lease_seconds: leaseSeconds,
-  }))
-  return Boolean(data)
+  const data = await databaseRequest('claim-worker-lease', () =>
+    supabase.rpc('claim_worker_lease', {
+      p_name: name,
+      p_owner: owner,
+      p_lease_seconds: leaseSeconds,
+    }),
+  );
+  return Boolean(data);
 }
 
 export async function releaseWorkerLease(name, owner) {
-  await databaseRequest('release-worker-lease', () => supabase.rpc('release_worker_lease', {
-    p_name: name,
-    p_owner: owner,
-  }))
+  await databaseRequest('release-worker-lease', () =>
+    supabase.rpc('release_worker_lease', {
+      p_name: name,
+      p_owner: owner,
+    }),
+  );
 }
 
 export async function beginWorkerRun(runId, source) {
-  const now = new Date().toISOString()
-  const data = await databaseRequest('begin-worker-run', () => supabase.from('worker_state').upsert({
-    id: 1,
-    run_id: runId,
-    source: String(source || 'unknown').slice(0, 80),
-    status: 'running',
-    started_at: now,
-    finished_at: null,
-    updated_at: now,
-  }).select('*').single())
-  return workerStateFromDatabase(data)
+  const now = new Date().toISOString();
+  const data = await databaseRequest('begin-worker-run', () =>
+    supabase
+      .from('worker_state')
+      .upsert({
+        id: 1,
+        run_id: runId,
+        source: String(source || 'unknown').slice(0, 80),
+        status: 'running',
+        started_at: now,
+        finished_at: null,
+        updated_at: now,
+      })
+      .select('*')
+      .single(),
+  );
+  return workerStateFromDatabase(data);
 }
 
 export async function finishWorkerRun(runId, values) {
-  const now = new Date().toISOString()
+  const now = new Date().toISOString();
   const update = {
     status: values.status,
     finished_at: now,
     last_error: String(values.error || '').slice(0, 2000),
     last_result: values.result ?? {},
     updated_at: now,
-  }
-  if (values.status === 'succeeded') update.last_success_at = now
-  const data = await databaseRequest('finish-worker-run', () => supabase.from('worker_state')
-    .update(update)
-    .eq('id', 1)
-    .eq('run_id', runId)
-    .select('*')
-    .maybeSingle())
-  return workerStateFromDatabase(data)
+  };
+  if (values.status === 'succeeded') update.last_success_at = now;
+  const data = await databaseRequest('finish-worker-run', () =>
+    supabase
+      .from('worker_state')
+      .update(update)
+      .eq('id', 1)
+      .eq('run_id', runId)
+      .select('*')
+      .maybeSingle(),
+  );
+  return workerStateFromDatabase(data);
 }
 
 export async function updateSettings(settings, quoteCursor) {
@@ -185,78 +209,115 @@ export async function updateSettings(settings, quoteCursor) {
     timezone: settings.timezone,
     queue_days: settings.queueDays,
     updated_at: new Date().toISOString(),
-  }
-  if (quoteCursor !== undefined) values.quote_cursor = quoteCursor
-  const data = await databaseRequest('update-settings', () => supabase.from('app_settings').update(values).eq('id', 1).select('*').single())
-  return settingsFromDatabase(data)
+  };
+  if (quoteCursor !== undefined) values.quote_cursor = quoteCursor;
+  const data = await databaseRequest('update-settings', () =>
+    supabase.from('app_settings').update(values).eq('id', 1).select('*').single(),
+  );
+  return settingsFromDatabase(data);
 }
 
 export async function insertPosts(posts) {
-  if (!posts.length) return []
-  const data = await databaseRequest('insert-posts', () => supabase.from('posts').insert(posts.map(postToDatabase)).select('*'))
-  return data.map(postFromDatabase)
+  if (!posts.length) return [];
+  const data = await databaseRequest('insert-posts', () =>
+    supabase.from('posts').insert(posts.map(postToDatabase)).select('*'),
+  );
+  return data.map(postFromDatabase);
 }
 
 export async function insertPost(post) {
-  const [created] = await insertPosts([post])
-  return created
+  const [created] = await insertPosts([post]);
+  return created;
 }
 
 export async function loadPost(id) {
-  const data = await databaseRequest('load-post', () => supabase.from('posts').select('*').eq('id', id).maybeSingle())
-  return data ? postFromDatabase(data) : null
+  const data = await databaseRequest('load-post', () =>
+    supabase.from('posts').select('*').eq('id', id).maybeSingle(),
+  );
+  return data ? postFromDatabase(data) : null;
 }
 
 export async function savePost(post) {
-  const data = await databaseRequest('save-post', () => supabase.from('posts').upsert(postToDatabase(post)).select('*').single())
-  return postFromDatabase(data)
+  const data = await databaseRequest('save-post', () =>
+    supabase.from('posts').upsert(postToDatabase(post)).select('*').single(),
+  );
+  return postFromDatabase(data);
 }
 
 export async function claimPostForPublishing(id) {
-  const leaseExpiresAt = new Date(Date.now() + 15 * 60_000).toISOString()
-  const data = await databaseRequest('claim-post', () => supabase
-    .from('posts')
-    .update({ status: 'publishing', error: '', next_attempt_at: leaseExpiresAt })
-    .eq('id', id)
-    .in('status', ['scheduled', 'failed'])
-    .select('*')
-    .maybeSingle())
-  return data ? postFromDatabase(data) : null
+  const leaseExpiresAt = new Date(Date.now() + 15 * 60_000).toISOString();
+  const data = await databaseRequest('claim-post', () =>
+    supabase
+      .from('posts')
+      .update({ status: 'publishing', error: '', next_attempt_at: leaseExpiresAt })
+      .eq('id', id)
+      .in('status', ['scheduled', 'failed'])
+      .select('*')
+      .maybeSingle(),
+  );
+  return data ? postFromDatabase(data) : null;
 }
 
 export async function releaseExpiredClaims(now = new Date()) {
-  const data = await databaseRequest('release-expired-claims', () => supabase
-    .from('posts')
-    .update({ status: 'failed', error: 'Publicarea a fost întreruptă după pornire. Verifică Instagram înainte de reîncercare pentru a evita un duplicat.', next_attempt_at: null })
-    .eq('status', 'publishing')
-    .lt('next_attempt_at', now.toISOString())
-    .select('*'))
-  return data.map(postFromDatabase)
+  const data = await databaseRequest('release-expired-claims', () =>
+    supabase
+      .from('posts')
+      .update({
+        status: 'failed',
+        error:
+          'Publicarea a fost întreruptă după pornire. Verifică Instagram înainte de reîncercare pentru a evita un duplicat.',
+        next_attempt_at: null,
+      })
+      .eq('status', 'publishing')
+      .lt('next_attempt_at', now.toISOString())
+      .select('*'),
+  );
+  return data.map(postFromDatabase);
 }
 
 export async function deletePost(id) {
-  await databaseRequest('delete-post', () => supabase.from('posts').delete().eq('id', id))
+  await databaseRequest('delete-post', () => supabase.from('posts').delete().eq('id', id));
 }
 
 export async function deletePosts(ids) {
-  if (!ids.length) return []
-  const data = await databaseRequest('delete-posts', () => supabase.from('posts').delete().in('id', ids).select('id'))
-  return data
+  if (!ids.length) return [];
+  const data = await databaseRequest('delete-posts', () =>
+    supabase.from('posts').delete().in('id', ids).select('id'),
+  );
+  return data;
 }
 
 export async function loadRefreshSnapshot(id) {
-  const raw = await databaseRequest('refresh-snapshot', () => supabase.from('posts').select('*').eq('id', id).maybeSingle())
-  return raw ? { raw, post: postFromDatabase(raw) } : null
+  const raw = await databaseRequest('refresh-snapshot', () =>
+    supabase.from('posts').select('*').eq('id', id).maybeSingle(),
+  );
+  return raw ? { raw, post: postFromDatabase(raw) } : null;
 }
 
 export async function replaceRefreshedMedia(snapshot, updated) {
-  const old = snapshot.raw
-  let query = supabase.from('posts').update({
-    quote: updated.quote, caption: updated.caption, design: normalizeDesign(updated.design, 'reel'), media_url: updated.mediaUrl,
-  }).eq('id', old.id).eq('status', 'scheduled').eq('format', 'reel')
-    .eq('scheduled_for', old.scheduled_for).gt('scheduled_for', new Date().toISOString())
-    .eq('quote', old.quote).eq('accent', old.accent)
-  for (const key of ['caption', 'media_url', 'design']) query = old[key] == null ? query.is(key, null) : query.eq(key, typeof old[key] === 'object' ? JSON.stringify(old[key]) : old[key])
-  const row = await databaseRequest('replace-refreshed-media', () => query.select('*').maybeSingle())
-  return row ? postFromDatabase(row) : null
+  const old = snapshot.raw;
+  let query = supabase
+    .from('posts')
+    .update({
+      quote: updated.quote,
+      caption: updated.caption,
+      design: normalizeDesign(updated.design, 'reel'),
+      media_url: updated.mediaUrl,
+    })
+    .eq('id', old.id)
+    .eq('status', 'scheduled')
+    .eq('format', 'reel')
+    .eq('scheduled_for', old.scheduled_for)
+    .gt('scheduled_for', new Date().toISOString())
+    .eq('quote', old.quote)
+    .eq('accent', old.accent);
+  for (const key of ['caption', 'media_url', 'design'])
+    query =
+      old[key] == null
+        ? query.is(key, null)
+        : query.eq(key, typeof old[key] === 'object' ? JSON.stringify(old[key]) : old[key]);
+  const row = await databaseRequest('replace-refreshed-media', () =>
+    query.select('*').maybeSingle(),
+  );
+  return row ? postFromDatabase(row) : null;
 }

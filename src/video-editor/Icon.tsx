@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react'
+import type { CSSProperties } from 'react';
 const paths: Record<string, string> = {
   dashboard: 'M3 3h7v8H3Zm11 0h7v5h-7ZM3 15h7v6H3Zm11-3h7v9h-7Z',
   calendar: 'M4 5h16v16H4ZM4 10h16M8 3v4m8-4v4M8 14h2m4 0h2m-8 4h2',
@@ -46,15 +46,15 @@ const paths: Record<string, string> = {
   check: 'm4 12 5 5L20 6',
   folder: 'M3 5h7l2 3h9v13H3Z',
   help: 'M9 8a3 3 0 1 1 5 2c-2 1-2 2-2 4m0 3h.01M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0',
-}
+};
 export function Icon({
   name,
   size = 17,
   style,
 }: {
-  name: string
-  size?: number
-  style?: CSSProperties
+  name: string;
+  size?: number;
+  style?: CSSProperties;
 }) {
   return (
     <svg
@@ -71,5 +71,5 @@ export function Icon({
     >
       <path d={paths[name] || paths.video} />
     </svg>
-  )
+  );
 }

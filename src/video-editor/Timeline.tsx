@@ -1,85 +1,85 @@
-import { useRef, useState } from 'react'
-import { clamp, durationOf, mediaClip, snapTime, timeLabel, trimClip } from './model'
-import type { Clip, TrackId } from './types'
-import type { Editor } from './useEditor'
-import { Icon } from './Icon'
+import { useRef, useState } from 'react';
+import { clamp, durationOf, mediaClip, snapTime, timeLabel, trimClip } from './model';
+import type { Clip, TrackId } from './types';
+import type { Editor } from './useEditor';
+import { Icon } from './Icon';
 
 export function Timeline({ editor: e }: { editor: Editor }) {
   const [zoom, setZoom] = useState(48),
     [snap, setSnap] = useState(true),
-    scroll = useRef<HTMLDivElement>(null)
+    scroll = useRef<HTMLDivElement>(null);
   const length = Math.max(30, durationOf(e.project) + 8),
-    width = length * zoom
+    width = length * zoom;
   const selected = e.project.clips.find((c) => c.id === e.selected),
-    locked = e.project.tracks.find((t) => t.id === selected?.track)?.locked
+    locked = e.project.tracks.find((t) => t.id === selected?.track)?.locked;
   const seek = (clientX: number) => {
-    const rect = scroll.current!.getBoundingClientRect()
-    e.seek((clientX - rect.left + scroll.current!.scrollLeft - 160) / zoom)
-  }
+    const rect = scroll.current!.getBoundingClientRect();
+    e.seek((clientX - rect.left + scroll.current!.scrollLeft - 160) / zoom);
+  };
   function drag(event: React.PointerEvent, clip: Clip, edge?: 'left' | 'right') {
-    if (e.project.tracks.find((t) => t.id === clip.track)?.locked) return
-    event.stopPropagation()
-    event.preventDefault()
-    event.currentTarget.setPointerCapture(event.pointerId)
-    e.setSelected(clip.id)
-    e.setPlaying(false)
-    e.begin()
+    if (e.project.tracks.find((t) => t.id === clip.track)?.locked) return;
+    event.stopPropagation();
+    event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    e.setSelected(clip.id);
+    e.setPlaying(false);
+    e.begin();
     const startX = event.clientX,
       original = structuredClone(clip),
-      originalScroll = scroll.current!.scrollLeft
+      originalScroll = scroll.current!.scrollLeft;
     const sourceDuration =
       clip.kind === 'text'
         ? 180
-        : e.project.assets.find((a) => a.id === clip.assetId)?.duration || clip.duration
+        : e.project.assets.find((a) => a.id === clip.assetId)?.duration || clip.duration;
     const move = (ev: PointerEvent) => {
-      const rect = scroll.current!.getBoundingClientRect()
-      if (ev.clientX > rect.right - 35) scroll.current!.scrollLeft += 12
-      if (ev.clientX < rect.left + 170) scroll.current!.scrollLeft -= 12
-      let delta = (ev.clientX - startX + scroll.current!.scrollLeft - originalScroll) / zoom
-      const reference = edge === 'right' ? original.start + original.duration : original.start
+      const rect = scroll.current!.getBoundingClientRect();
+      if (ev.clientX > rect.right - 35) scroll.current!.scrollLeft += 12;
+      if (ev.clientX < rect.left + 170) scroll.current!.scrollLeft -= 12;
+      let delta = (ev.clientX - startX + scroll.current!.scrollLeft - originalScroll) / zoom;
+      const reference = edge === 'right' ? original.start + original.duration : original.start;
       if (snap)
-        delta = snapTime(reference + delta, e.project, clip.id, e.time, 8 / zoom) - reference
-      delta = Math.round(delta * e.project.fps) / e.project.fps
+        delta = snapTime(reference + delta, e.project, clip.id, e.time, 8 / zoom) - reference;
+      delta = Math.round(delta * e.project.fps) / e.project.fps;
       if (edge)
-        e.updateClip(clip.id, () => trimClip(original, edge, delta, sourceDuration, e.project.fps))
+        e.updateClip(clip.id, () => trimClip(original, edge, delta, sourceDuration, e.project.fps));
       else
         e.updateClip(clip.id, () => ({
           ...original,
           start: clamp(original.start + delta, 0, 180 - original.duration),
-        }))
-    }
+        }));
+    };
     const end = () => {
-      e.end()
-      window.removeEventListener('pointermove', move)
-      window.removeEventListener('pointerup', end)
-      window.removeEventListener('pointercancel', end)
-    }
-    window.addEventListener('pointermove', move)
-    window.addEventListener('pointerup', end, { once: true })
-    window.addEventListener('pointercancel', end, { once: true })
+      e.end();
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', end);
+      window.removeEventListener('pointercancel', end);
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', end, { once: true });
+    window.addEventListener('pointercancel', end, { once: true });
   }
   function drop(event: React.DragEvent, track: TrackId) {
-    event.preventDefault()
+    event.preventDefault();
     const asset = e.project.assets.find(
       (a) => a.id === event.dataTransfer.getData('application/x-sf-media'),
-    )
+    );
     if (
       !asset ||
       e.project.tracks.find((t) => t.id === track)?.locked ||
       track === 'text' ||
       (asset.kind === 'audio' ? track !== 'audio' : track === 'audio')
     )
-      return
-    if (e.project.clips.length >= 40) return e.setError('A project can contain up to 40 clips.')
-    const rect = event.currentTarget.getBoundingClientRect()
-    let start = clamp((event.clientX - rect.left) / zoom, 0, 179)
-    if (snap) start = snapTime(start, e.project, '', e.time, 8 / zoom)
-    const clip = mediaClip(asset, start, track)
-    clip.duration = Math.min(clip.duration, 180 - start)
-    e.edit((p) => ({ ...p, clips: [...p.clips, clip] }))
-    e.setSelected(clip.id)
+      return;
+    if (e.project.clips.length >= 40) return e.setError('A project can contain up to 40 clips.');
+    const rect = event.currentTarget.getBoundingClientRect();
+    let start = clamp((event.clientX - rect.left) / zoom, 0, 179);
+    if (snap) start = snapTime(start, e.project, '', e.time, 8 / zoom);
+    const clip = mediaClip(asset, start, track);
+    clip.duration = Math.min(clip.duration, 180 - start);
+    e.edit((p) => ({ ...p, clips: [...p.clips, clip] }));
+    e.setSelected(clip.id);
   }
-  const interval = zoom >= 60 ? 1 : zoom >= 24 ? 5 : 10
+  const interval = zoom >= 60 ? 1 : zoom >= 24 ? 5 : 10;
   return (
     <section className="ve-timeline" aria-label="Timeline">
       <div className="ve-timeline-tools">
@@ -156,8 +156,8 @@ export function Timeline({ editor: e }: { editor: Editor }) {
                   12,
                   120,
                 ),
-              )
-              scroll.current?.scrollTo({ left: 0 })
+              );
+              scroll.current?.scrollTo({ left: 0 });
             }}
           >
             Fit
@@ -174,18 +174,18 @@ export function Timeline({ editor: e }: { editor: Editor }) {
               className="ve-ruler"
               style={{ width }}
               onPointerDown={(event) => {
-                event.currentTarget.setPointerCapture(event.pointerId)
-                e.setPlaying(false)
-                seek(event.clientX)
+                event.currentTarget.setPointerCapture(event.pointerId);
+                e.setPlaying(false);
+                seek(event.clientX);
                 const move = (ev: PointerEvent) => seek(ev.clientX),
                   end = () => {
-                    window.removeEventListener('pointermove', move)
-                    window.removeEventListener('pointerup', end)
-                    window.removeEventListener('pointercancel', end)
-                  }
-                window.addEventListener('pointermove', move)
-                window.addEventListener('pointerup', end, { once: true })
-                window.addEventListener('pointercancel', end, { once: true })
+                    window.removeEventListener('pointermove', move);
+                    window.removeEventListener('pointerup', end);
+                    window.removeEventListener('pointercancel', end);
+                  };
+                window.addEventListener('pointermove', move);
+                window.addEventListener('pointerup', end, { once: true });
+                window.addEventListener('pointercancel', end, { once: true });
               }}
             >
               {Array.from({ length: Math.ceil(length / interval) }, (_, i) => (
@@ -243,14 +243,14 @@ export function Timeline({ editor: e }: { editor: Editor }) {
                 data-track={track.id}
                 style={{ width, backgroundSize: `${interval * zoom}px 100%` }}
                 onDragOver={(event) => {
-                  event.preventDefault()
-                  event.dataTransfer.dropEffect = 'copy'
+                  event.preventDefault();
+                  event.dataTransfer.dropEffect = 'copy';
                 }}
                 onDrop={(event) => drop(event, track.id)}
                 onPointerDown={(event) => {
                   if (event.target === event.currentTarget) {
-                    e.setSelected(null)
-                    seek(event.clientX)
+                    e.setSelected(null);
+                    seek(event.clientX);
                   }
                 }}
               >
@@ -267,7 +267,7 @@ export function Timeline({ editor: e }: { editor: Editor }) {
                     const asset =
                       clip.kind === 'text'
                         ? undefined
-                        : e.project.assets.find((a) => a.id === clip.assetId)
+                        : e.project.assets.find((a) => a.id === clip.assetId);
                     return (
                       <div
                         role="button"
@@ -283,7 +283,7 @@ export function Timeline({ editor: e }: { editor: Editor }) {
                         onPointerDown={(event) => drag(event, clip)}
                         onClick={() => e.setSelected(clip.id)}
                         onKeyDown={(event) => {
-                          if (event.key === 'Enter') e.setSelected(clip.id)
+                          if (event.key === 'Enter') e.setSelected(clip.id);
                         }}
                       >
                         <span
@@ -295,7 +295,7 @@ export function Timeline({ editor: e }: { editor: Editor }) {
                           onPointerDown={(event) => drag(event, clip, 'left')}
                           onKeyDown={(event) => {
                             if (event.key.startsWith('Arrow')) {
-                              event.stopPropagation()
+                              event.stopPropagation();
                               e.updateClip(clip.id, (c) =>
                                 trimClip(
                                   c,
@@ -306,7 +306,7 @@ export function Timeline({ editor: e }: { editor: Editor }) {
                                   asset?.duration || 180,
                                   e.project.fps,
                                 ),
-                              )
+                              );
                             }
                           }}
                         />
@@ -353,7 +353,7 @@ export function Timeline({ editor: e }: { editor: Editor }) {
                           onPointerDown={(event) => drag(event, clip, 'right')}
                         />
                       </div>
-                    )
+                    );
                   })}
               </div>
             </div>
@@ -373,5 +373,5 @@ export function Timeline({ editor: e }: { editor: Editor }) {
         <span>{timeLabel(durationOf(e.project))} total</span>
       </div>
     </section>
-  )
+  );
 }

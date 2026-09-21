@@ -1,11 +1,21 @@
-export const REEL_TIMES = ['09:00', '15:30', '21:00']
-export const POST_TIME = '11:00'
-export const POST_WEEKDAYS = [2, 6]
+export const REEL_TIMES = ['09:00', '15:30', '21:00'];
+export const POST_TIME = '11:00';
+export const POST_WEEKDAYS = [2, 6];
 
 export const CONTENT_PILLARS = [
-  'discipline', 'focus', 'consistency', 'self-respect', 'resilience', 'deep-work',
-  'quiet-confidence', 'habits', 'purpose', 'mental-strength', 'growth', 'courage',
-]
+  'discipline',
+  'focus',
+  'consistency',
+  'self-respect',
+  'resilience',
+  'deep-work',
+  'quiet-confidence',
+  'habits',
+  'purpose',
+  'mental-strength',
+  'growth',
+  'courage',
+];
 
 const hooks = [
   'Save this for the moment your discipline gets tested.',
@@ -20,7 +30,7 @@ const hooks = [
   'One thought for a stronger, quieter day.',
   'You do not need a perfect day. You need the next action.',
   'For everyone choosing progress without applause.',
-]
+];
 
 const closers = [
   'Quiet work. Visible results.',
@@ -29,14 +39,14 @@ const closers = [
   'Small proof, repeated daily.',
   'Less noise. More direction.',
   'Keep the promise you made to yourself.',
-]
+];
 
 const callsToAction = [
   'Follow @silentforward for daily discipline and perspective.',
   'Save this and come back when you need the reminder.',
   'Share this with someone who refuses to stop.',
   'Follow @silentforward and build quietly with us.',
-]
+];
 
 const pillarContext = {
   discipline: 'Discipline is not intensity. It is the quiet decision to keep one promise today.',
@@ -47,7 +57,7 @@ const pillarContext = {
   growth: 'Progress often becomes visible long after the daily choices that created it.',
   'quiet-confidence': 'Real confidence does not need constant proof, noise or permission.',
   purpose: 'Direction creates a calmer kind of momentum than pressure ever can.',
-}
+};
 
 const pillarHashtags = {
   discipline: '#discipline #consistency #dailyhabits #selfmastery #motivation #silentforward',
@@ -56,13 +66,17 @@ const pillarHashtags = {
   'self-respect': '#selfrespect #selfworth #boundaries #confidence #mindset #silentforward',
   courage: '#courage #fearlessmindset #takeaction #growthmindset #motivation #silentforward',
   growth: '#personalgrowth #progress #growthmindset #betterself #motivation #silentforward',
-  'quiet-confidence': '#quietconfidence #confidence #selfbelief #innerstrength #mindset #silentforward',
+  'quiet-confidence':
+    '#quietconfidence #confidence #selfbelief #innerstrength #mindset #silentforward',
   purpose: '#purpose #direction #intentionality #focus #personaldevelopment #silentforward',
-}
+};
 
 export function captionFor(quote, format, cursor, growth = {}) {
-  const pillar = growth.pillar || 'growth'
-  const context = pillarContext[pillar] || pillarContext.growth
-  const hashtags = (pillarHashtags[pillar] || pillarHashtags.growth).split(' ').slice(0, 2).join(' ')
-  return `${cursor % 2 === 0 ? context : closers[Math.floor(cursor / 2) % closers.length]}${cursor % 5 === 0 ? '\n\nRemember this.' : ''}\n\n${hashtags} #silentforward`
+  const pillar = growth.pillar || 'growth';
+  const context = pillarContext[pillar] || pillarContext.growth;
+  const hashtags = (pillarHashtags[pillar] || pillarHashtags.growth)
+    .split(' ')
+    .slice(0, 2)
+    .join(' ');
+  return `${cursor % 2 === 0 ? context : closers[Math.floor(cursor / 2) % closers.length]}${cursor % 5 === 0 ? '\n\nRemember this.' : ''}\n\n${hashtags} #silentforward`;
 }

@@ -1,48 +1,48 @@
-import { useEffect, useState } from 'react'
-import { useEditor } from './useEditor'
-import { useMedia } from './media'
-import { newProject } from './model'
-import { clearMedia } from './storage'
-import { Icon } from './Icon'
-import { MediaLibrary } from './MediaLibrary'
-import { VideoPreview } from './VideoPreview'
-import { Timeline } from './Timeline'
-import { Inspector } from './Inspector'
-import { ExportModal } from './ExportModal'
-import './editor.css'
+import { useEffect, useState } from 'react';
+import { useEditor } from './useEditor';
+import { useMedia } from './media';
+import { newProject } from './model';
+import { clearMedia } from './storage';
+import { Icon } from './Icon';
+import { MediaLibrary } from './MediaLibrary';
+import { VideoPreview } from './VideoPreview';
+import { Timeline } from './Timeline';
+import { Inspector } from './Inspector';
+import { ExportModal } from './ExportModal';
+import './editor.css';
 
 export default function VideoEditor() {
   const editor = useEditor(),
-    media = useMedia(editor.project.assets, editor.setError)
+    media = useMedia(editor.project.assets, editor.setError);
   const [exporting, setExporting] = useState(false),
-    [fontsReady, setFontsReady] = useState(false)
+    [fontsReady, setFontsReady] = useState(false);
   useEffect(() => {
-    let alive = true
+    let alive = true;
     Promise.all(
       ['Studio Sans', 'Studio Serif', 'Studio Mono'].map((font) =>
         document.fonts.load(`700 80px "${font}"`),
       ),
     )
       .then(() => {
-        if (alive) setFontsReady(true)
+        if (alive) setFontsReady(true);
       })
       .catch(() => {
         if (alive) {
-          setFontsReady(true)
-          editor.setError('Some bundled fonts could not load. Reload before exporting text.')
+          setFontsReady(true);
+          editor.setError('Some bundled fonts could not load. Reload before exporting text.');
         }
-      })
+      });
     return () => {
-      alive = false
-    }
-  }, [])
+      alive = false;
+    };
+  }, []);
   if (!editor.ready || !fontsReady)
     return (
       <div className="ve-loading">
         <span className="ve-brand-mark">SF</span>
         <p>Opening your editing room…</p>
       </div>
-    )
+    );
   return (
     <div className="ve-app">
       <header className="ve-header">
@@ -52,10 +52,10 @@ export default function VideoEditor() {
           title="Back to Silent Forward"
           aria-label="Back to Silent Forward"
           onClick={(event) => {
-            event.preventDefault()
+            event.preventDefault();
             void editor.persist(editor.project).then((saved) => {
-              if (saved) window.location.href = '/'
-            })
+              if (saved) window.location.href = '/';
+            });
           }}
         >
           <Icon name="back" size={16} />
@@ -87,16 +87,16 @@ export default function VideoEditor() {
             className="ve-new"
             onClick={async () => {
               if (!confirm('Start a new project? Current media and undo history will be cleared.'))
-                return
-              editor.setPlaying(false)
-              const project = newProject()
-              editor.edit(() => project)
+                return;
+              editor.setPlaying(false);
+              const project = newProject();
+              editor.edit(() => project);
               if (await editor.persist(project)) {
                 try {
-                  await clearMedia()
-                  window.location.reload()
+                  await clearMedia();
+                  window.location.reload();
                 } catch {
-                  editor.setError('Could not clear local media. Reload and try again.')
+                  editor.setError('Could not clear local media. Reload and try again.');
                 }
               }
             }}
@@ -132,8 +132,8 @@ export default function VideoEditor() {
             className="ve-primary"
             disabled={!editor.project.clips.length}
             onClick={() => {
-              editor.setPlaying(false)
-              setExporting(true)
+              editor.setPlaying(false);
+              setExporting(true);
             }}
           >
             <Icon name="export" />
@@ -159,5 +159,5 @@ export default function VideoEditor() {
       </div>
       {exporting && <ExportModal project={editor.project} onClose={() => setExporting(false)} />}
     </div>
-  )
+  );
 }
