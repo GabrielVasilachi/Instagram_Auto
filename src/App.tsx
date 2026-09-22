@@ -471,10 +471,6 @@ function Login({ onAuthenticated }: { onAuthenticated: () => void }) {
       <section className="login-form-side">
         <ThemeToggle className="login-theme-toggle" />
         <div className="login-card">
-          <span className="login-lock">
-            <Icon name="lock" size={22} />
-          </span>
-          <p className="eyebrow">SPAȚIUL TĂU CREATIV</p>
           <h2>Bine ai revenit.</h2>
           <p className="login-copy">Autentifică-te pentru a continua.</p>
           <form onSubmit={submit}>
@@ -500,9 +496,6 @@ function Login({ onAuthenticated }: { onAuthenticated: () => void }) {
               </p>
             )}
           </form>
-          <p className="login-private">
-            <Icon name="lock" size={13} /> Acces privat la dashboard
-          </p>
           {local && (
             <details className="local-help">
               <summary>Autentificare locală</summary>
