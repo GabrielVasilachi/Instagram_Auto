@@ -775,8 +775,17 @@ function DashboardApp({ onLogout }: { onLogout: () => void }) {
   }
   useEffect(() => {
     refresh();
-    const interval = window.setInterval(refresh, 30_000);
-    return () => window.clearInterval(interval);
+    const interval = window.setInterval(() => {
+      if (document.visibilityState === 'visible') refresh();
+    }, 5 * 60_000);
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') refresh();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
   }, []);
   useEffect(() => {
     const handler = () => setPage(currentPage());
@@ -800,7 +809,7 @@ function DashboardApp({ onLogout }: { onLogout: () => void }) {
   );
   const automationHealthy = Boolean(
     data.automation.lastRun?.lastSuccessAt &&
-    Date.now() - new Date(data.automation.lastRun.lastSuccessAt).getTime() < 5 * 60_000,
+    Date.now() - new Date(data.automation.lastRun.lastSuccessAt).getTime() < 90 * 60_000,
   );
   const recentDays = useMemo(
     () =>

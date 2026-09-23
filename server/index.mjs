@@ -25,7 +25,11 @@ import {
   insertPost,
   insertPosts,
   loadDatabase,
+  loadDueInsightId,
+  loadDuePostIds,
+  loadDueStoryId,
   loadPost,
+  loadSettings,
   loadWorkerState,
   releaseExpiredClaims,
   releaseWorkerLease,
@@ -162,7 +166,11 @@ app.post('/api/worker/run', async (request, response) => {
     return response.status(401).json({ error: 'Autorizare worker invalidă.' });
   }
   try {
-    response.json(await runRemoteWorker({ source: 'supabase-cron', scheduler: true }));
+    response.json(await runRemoteWorker({
+      source: 'supabase-cron',
+      scheduler: true,
+      maintenance: request.body?.maintenance === true,
+    }));
   } catch (error) {
     console.error('[worker]', error instanceof Error ? error.message : error);
     response.status(500).json({ error: 'Rularea automată nu a putut fi finalizată.' });
@@ -699,20 +707,12 @@ async function publishStoryPromotion(post) {
 }
 
 async function publishDueStories(limit = 1) {
-  const database = await loadDatabase();
-  const now = new Date();
-  const due = database.posts
-    .filter(
-      (post) =>
-        post.status === 'published' &&
-        ['pending', 'failed', 'publishing'].includes(post.design?.story?.status) &&
-        (post.design.story.retryCount ?? 0) < 5 &&
-        (!post.design.story.nextAttemptAt || new Date(post.design.story.nextAttemptAt) <= now),
-    )
-    .sort((left, right) => new Date(left.publishedAt) - new Date(right.publishedAt))
-    .slice(0, limit);
   const results = [];
-  for (const post of due) {
+  for (let index = 0; index < limit; index += 1) {
+    const id = await loadDueStoryId();
+    if (!id) break;
+    const post = await loadPost(id);
+    if (!post) continue;
     try {
       const published = await publishStoryPromotion(post);
       results.push({
@@ -732,22 +732,8 @@ async function publishDueStories(limit = 1) {
 }
 
 async function collectNextMediaInsight() {
-  const database = await loadDatabase();
-  const now = Date.now();
-  const candidate = database.posts
-    .filter(
-      (post) =>
-        post.status === 'published' &&
-        post.instagramMediaId &&
-        now - new Date(post.publishedAt).getTime() >= 15 * 60_000 &&
-        (!post.design?.performance?.checkedAt ||
-          now - new Date(post.design.performance.checkedAt).getTime() >= 6 * 60 * 60_000),
-    )
-    .sort((left, right) => {
-      const leftChecked = left.design?.performance?.checkedAt || left.publishedAt;
-      const rightChecked = right.design?.performance?.checkedAt || right.publishedAt;
-      return new Date(leftChecked) - new Date(rightChecked);
-    })[0];
+  const id = await loadDueInsightId();
+  const candidate = id ? await loadPost(id) : null;
   if (!candidate) return null;
   const metrics = await fetchMediaInsights(candidate);
   const rating = calculatePerformanceScore(candidate, metrics);
@@ -840,30 +826,23 @@ app.patch('/api/settings', async (request, response) => {
       30,
       Math.max(3, Number(request.body.queueDays) || settings.queueDays),
     );
-  response.json(await updateSettings({ ...settings, schemaVersion: 3 }));
+  const updated = await updateSettings({ ...settings, schemaVersion: 3 });
+  if (updated.autopilot) await fillQueue();
+  response.json(updated);
 });
 
 async function publishDuePosts(limit = 1) {
   await releaseExpiredClaims();
-  const database = await loadDatabase();
-  if (!database.settings.autopilot) return [];
-  const now = new Date();
-  const due = database.posts
-    .filter(
-      (post) =>
-        post.status === 'scheduled' &&
-        new Date(post.scheduledFor) <= now &&
-        (!post.nextAttemptAt || new Date(post.nextAttemptAt) <= now),
-    )
-    .sort((left, right) => new Date(left.scheduledFor) - new Date(right.scheduledFor))
-    .slice(0, limit);
+  const settings = await loadSettings();
+  if (!settings.autopilot) return [];
+  const due = await loadDuePostIds(new Date(), limit);
   const results = [];
   const errors = [];
-  for (const post of due) {
+  for (const id of due) {
     try {
-      console.log(`[publisher] Publicăm ${post.format}: ${post.id}`);
-      results.push(await publishPost(post.id));
-      console.log(`[publisher] Publicare finalizată: ${post.id}`);
+      console.log(`[publisher] Publicăm ${id}`);
+      results.push(await publishPost(id));
+      console.log(`[publisher] Publicare finalizată: ${id}`);
     } catch (error) {
       errors.push(error);
       console.error(`[publisher] ${error instanceof Error ? error.message : error}`);
@@ -895,12 +874,12 @@ async function runRemoteWorker(options = {}) {
   try {
     await beginWorkerRun(runId, source);
     runStarted = true;
-    const additions = await fillQueue();
+    const additions = options.maintenance === false ? [] : await fillQueue();
     const published = await publishDuePosts(1);
     const stories = await publishDueStories(1);
     let insight = null;
     try {
-      insight = await collectNextMediaInsight();
+      if (options.maintenance !== false) insight = await collectNextMediaInsight();
     } catch (error) {
       console.warn(`[insights] ${error instanceof Error ? error.message : error}`);
     }
@@ -917,7 +896,11 @@ async function runRemoteWorker(options = {}) {
       stories,
       insight,
     };
-    await finishWorkerRun(runId, { status: 'succeeded', result });
+    await finishWorkerRun(runId, {
+      status: 'succeeded',
+      result,
+      maintenance: options.maintenance !== false,
+    });
     return result;
   } catch (error) {
     if (runStarted) {

@@ -3,6 +3,9 @@ import { normalizeDesign } from './design.mjs';
 import { withRemoteRetries } from './retry.mjs';
 import { POST_WEEKDAYS, REEL_TIMES } from './content-plan.mjs';
 
+const POST_COLUMNS = 'id,quote,caption,accent,format,status,scheduled_for,created_at,auto_generated,design,media_url,instagram_media_id,published_at,error,retry_count,next_attempt_at';
+const SETTINGS_COLUMNS = 'schema_version,autopilot,post_time,reel_time,timezone,queue_days,quote_cursor';
+
 const retryOptions = {
   attempts: 5,
   baseDelayMs: 2_000,
@@ -103,7 +106,7 @@ function workerStateFromDatabase(state) {
 
 export async function loadSettings() {
   const data = await databaseRequest('settings', () =>
-    supabase.from('app_settings').select('*').eq('id', 1).single(),
+    supabase.from('app_settings').select(SETTINGS_COLUMNS).eq('id', 1).single(),
   );
   return settingsFromDatabase(data);
 }
@@ -112,7 +115,7 @@ export async function loadDatabase() {
   const [settings, postsResult] = await Promise.all([
     loadSettings(),
     databaseRequest('posts', () =>
-      supabase.from('posts').select('*').order('scheduled_for', { ascending: true }),
+      supabase.from('posts').select(POST_COLUMNS).order('scheduled_for', { ascending: true }),
     ),
   ]);
   return {
@@ -133,7 +136,7 @@ export async function loadDatabase() {
 
 export async function loadWorkerState() {
   const data = await databaseRequest('worker-state', () =>
-    supabase.from('worker_state').select('*').eq('id', 1).maybeSingle(),
+    supabase.from('worker_state').select('run_id,source,status,started_at,finished_at,last_success_at,last_error,last_result').eq('id', 1).maybeSingle(),
   );
   return workerStateFromDatabase(data);
 }
@@ -172,7 +175,7 @@ export async function beginWorkerRun(runId, source) {
         finished_at: null,
         updated_at: now,
       })
-      .select('*')
+      .select('run_id,source,status,started_at,finished_at,last_success_at,last_error,last_result')
       .single(),
   );
   return workerStateFromDatabase(data);
@@ -188,13 +191,15 @@ export async function finishWorkerRun(runId, values) {
     updated_at: now,
   };
   if (values.status === 'succeeded') update.last_success_at = now;
+  if (values.status === 'succeeded' && values.maintenance)
+    update.next_maintenance_at = new Date(Date.now() + 60 * 60_000).toISOString();
   const data = await databaseRequest('finish-worker-run', () =>
     supabase
       .from('worker_state')
       .update(update)
       .eq('id', 1)
       .eq('run_id', runId)
-      .select('*')
+      .select('run_id,source,status,started_at,finished_at,last_success_at,last_error,last_result')
       .maybeSingle(),
   );
   return workerStateFromDatabase(data);
@@ -212,7 +217,7 @@ export async function updateSettings(settings, quoteCursor) {
   };
   if (quoteCursor !== undefined) values.quote_cursor = quoteCursor;
   const data = await databaseRequest('update-settings', () =>
-    supabase.from('app_settings').update(values).eq('id', 1).select('*').single(),
+    supabase.from('app_settings').update(values).eq('id', 1).select(SETTINGS_COLUMNS).single(),
   );
   return settingsFromDatabase(data);
 }
@@ -220,7 +225,7 @@ export async function updateSettings(settings, quoteCursor) {
 export async function insertPosts(posts) {
   if (!posts.length) return [];
   const data = await databaseRequest('insert-posts', () =>
-    supabase.from('posts').insert(posts.map(postToDatabase)).select('*'),
+    supabase.from('posts').insert(posts.map(postToDatabase)).select(POST_COLUMNS),
   );
   return data.map(postFromDatabase);
 }
@@ -232,14 +237,14 @@ export async function insertPost(post) {
 
 export async function loadPost(id) {
   const data = await databaseRequest('load-post', () =>
-    supabase.from('posts').select('*').eq('id', id).maybeSingle(),
+    supabase.from('posts').select(POST_COLUMNS).eq('id', id).maybeSingle(),
   );
   return data ? postFromDatabase(data) : null;
 }
 
 export async function savePost(post) {
   const data = await databaseRequest('save-post', () =>
-    supabase.from('posts').upsert(postToDatabase(post)).select('*').single(),
+    supabase.from('posts').upsert(postToDatabase(post)).select(POST_COLUMNS).single(),
   );
   return postFromDatabase(data);
 }
@@ -252,7 +257,7 @@ export async function claimPostForPublishing(id) {
       .update({ status: 'publishing', error: '', next_attempt_at: leaseExpiresAt })
       .eq('id', id)
       .in('status', ['scheduled', 'failed'])
-      .select('*')
+      .select(POST_COLUMNS)
       .maybeSingle(),
   );
   return data ? postFromDatabase(data) : null;
@@ -270,9 +275,29 @@ export async function releaseExpiredClaims(now = new Date()) {
       })
       .eq('status', 'publishing')
       .lt('next_attempt_at', now.toISOString())
-      .select('*'),
+      .select('id'),
   );
-  return data.map(postFromDatabase);
+  return data.map((post) => post.id);
+}
+
+export async function loadDuePostIds(now = new Date(), limit = 1) {
+  const data = await databaseRequest('due-posts', () =>
+    supabase.from('posts').select('id')
+      .eq('status', 'scheduled')
+      .lte('scheduled_for', now.toISOString())
+      .or(`next_attempt_at.is.null,next_attempt_at.lte.${now.toISOString()}`)
+      .order('scheduled_for', { ascending: true })
+      .limit(limit),
+  );
+  return data.map((post) => post.id);
+}
+
+export async function loadDueStoryId() {
+  return databaseRequest('due-story', () => supabase.rpc('next_publisher_story_id'));
+}
+
+export async function loadDueInsightId() {
+  return databaseRequest('due-insight', () => supabase.rpc('next_publisher_insight_id'));
 }
 
 export async function deletePost(id) {
@@ -289,7 +314,7 @@ export async function deletePosts(ids) {
 
 export async function loadRefreshSnapshot(id) {
   const raw = await databaseRequest('refresh-snapshot', () =>
-    supabase.from('posts').select('*').eq('id', id).maybeSingle(),
+    supabase.from('posts').select(POST_COLUMNS).eq('id', id).maybeSingle(),
   );
   return raw ? { raw, post: postFromDatabase(raw) } : null;
 }
@@ -317,7 +342,7 @@ export async function replaceRefreshedMedia(snapshot, updated) {
         ? query.is(key, null)
         : query.eq(key, typeof old[key] === 'object' ? JSON.stringify(old[key]) : old[key]);
   const row = await databaseRequest('replace-refreshed-media', () =>
-    query.select('*').maybeSingle(),
+    query.select(POST_COLUMNS).maybeSingle(),
   );
   return row ? postFromDatabase(row) : null;
 }

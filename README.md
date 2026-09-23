@@ -13,7 +13,7 @@ You need [Node.js 22](https://nodejs.org/), Git, an Instagram **Business account
    cd Instagram_Auto
    ```
 
-2. Create a Supabase project. In its **SQL Editor**, run the four files in [`supabase/migrations`](supabase/migrations) in filename order.
+2. Create a Supabase project. In its **SQL Editor**, run the files in [`supabase/migrations`](supabase/migrations) in filename order.
 3. Copy the settings file and fill in **your own** values. In Windows PowerShell, use `Copy-Item .env.example .env` instead of `cp`.
 
    ```bash
