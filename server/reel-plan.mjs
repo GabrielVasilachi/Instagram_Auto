@@ -1,5 +1,7 @@
 // Shared deterministic timing: the preview and renderer use the same scene clock.
-export const REEL_VERSION = '2026.2';
+import { FOLLOWER_STANDARD } from './follower-series.mjs';
+
+export const REEL_VERSION = FOLLOWER_STANDARD;
 export const MOODS = {
   discipline: {
     match: /disciplin|habit|work|routine|excuse|consisten/i,
@@ -96,21 +98,29 @@ export function sceneTexts(text) {
   return scenes;
 }
 export function planReel(text, design = {}) {
-  let time = 0.15;
-  const scenes = sceneTexts(text).map((text, index, all) => {
+  const cta = design.growth?.version === FOLLOWER_STANDARD && design.growth.cta;
+  const lines = sceneTexts(text);
+  if (cta) lines.push(cta);
+  let time = cta ? 0 : 0.15;
+  const scenes = lines.map((text, index, all) => {
     const words = text.split(/\s+/).length;
     const lines = Math.ceil(text.length / 23);
     const hold = Math.max(2, words / 2.8 + Math.max(0, lines - 1) * 0.15) + 0.45;
-    const duration = 0.35 + hold + 0.4;
+    const isCta = cta && index === all.length - 1;
+    const enter = cta && index === 0 ? 0 : 0.35;
+    const exit = 0.4;
+    const duration = enter + hold + exit;
     const scene = {
       text,
-      role: index === 0 ? 'hook' : index === all.length - 1 ? 'payoff' : 'message',
+      role: isCta ? 'follow' : index === 0 ? 'hook' : index === all.length - (cta ? 2 : 1) ? 'payoff' : 'message',
+      enter,
+      exit,
       start: time,
       hold,
       duration,
       end: time + duration,
     };
-    time += duration + 0.08;
+    time += duration + (cta ? 0 : 0.08);
     return scene;
   });
   if (time + 0.2 < 5) {

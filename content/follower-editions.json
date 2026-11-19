@@ -1,0 +1,53 @@
+{
+  "focus": [
+    ["Too many tabs open?", "Write tomorrow’s first task.", "Close everything except what it needs."],
+    ["Your phone keeps winning?", "Put it where standing up becomes necessary."],
+    ["How do you stop drifting?", "Write one finish line.", "Start a ten-minute timer."],
+    ["Keep checking your messages?", "Pick two check-in times.", "Put them on your calendar."],
+    ["Can’t start the hard thing?", "Make the first action physical.", "Open the file and name it."],
+    ["Distracted by a good idea?", "Park it on paper.", "Return to the task already open."],
+    ["Your desk can change the next hour.", "Leave one tool in sight.", "Put the rest away."],
+    ["Busy all morning?", "Write what actually moved forward.", "Give that task tomorrow’s first hour."],
+    ["Meetings ate your day?", "Protect fifteen minutes before the first one."],
+    ["What does finished look like?", "Write one sentence before you begin."],
+    ["Breaks keep turning into scrolling?", "Stand up and get a glass of water."],
+    ["Why is the task still vague?", "Start its name with a verb."],
+    ["Too many things feel urgent?", "Ask what actually changes by tomorrow."],
+    ["Want a quieter morning?", "Choose what gets your attention before your phone does."],
+    ["Interruptions leave loose ends.", "Write where to resume before you switch."]
+  ],
+  "discipline": [
+    ["What’s your smallest workout?", "Put on your shoes.", "Walk to the end of the street."],
+    ["Keep forgetting the habit?", "Attach it to something you already do."],
+    ["A rough day needs a smaller plan.", "Read one page before you turn out the light."],
+    ["Make your morning easier tonight.", "Put your walking shoes by the door."],
+    ["Keep skipping your study session?", "Leave the book open to the next page."],
+    ["Want to write more often?", "End today by starting tomorrow’s first sentence."],
+    ["Your weekly plan keeps breaking?", "Schedule the version you can do on Wednesday."],
+    ["Can’t keep the streak going?", "Track returns after a missed day."],
+    ["Spend five minutes planning dinner.", "Tomorrow, the first decision is already made."],
+    ["Make the good habit obvious.", "Put a glass beside the kettle tonight."],
+    ["What makes the habit hard?", "Remove one step before you repeat it."],
+    ["Too tired for the whole routine?", "Keep the first minute and call it today."],
+    ["Your Sunday plan needs one appointment.", "Pick a task, a time and a place."],
+    ["A promise needs a cue.", "After lunch, walk around the block."],
+    ["Keep one promise this week.", "Pick something that takes five minutes."]
+  ],
+  "resilience": [
+    ["Missed three days?", "Pick a time today.", "Do the smallest version once."],
+    ["A no can leave you stuck.", "Write one thing the next attempt can improve."],
+    ["Had a bad morning?", "Choose what would make the afternoon worthwhile."],
+    ["Staring at a failed draft?", "Circle the sentence worth keeping.", "Build from there."],
+    ["Overwhelmed by a restart?", "Pick up exactly where you left off."],
+    ["The deadline slipped.", "Send an honest update and name your next step."],
+    ["Hard to ask for help?", "Send one person a specific question."],
+    ["The week got away from you.", "Give the next ten minutes a job."],
+    ["You changed your mind.", "Write what you know now.", "Choose from there."],
+    ["One awkward attempt is practice.", "Write the first line for your next try."],
+    ["How do you return after burnout?", "Leave space after the first small task."],
+    ["Plans fell through?", "Name what is still available to you today."],
+    ["Confidence can grow from evidence.", "Write down one hard thing you handled."],
+    ["Feeling behind again?", "Ask what would make this week easier."],
+    ["Make room for another try.", "Set a date while the lesson is fresh."]
+  ]
+}

@@ -13,7 +13,8 @@ test('growth engine classifies messages and produces an original creative brief'
   assert.equal(detectPillar(quote), 'discipline');
   assert.equal(design.growth.pillar, 'discipline');
   assert.ok(design.growth.hook.length > 15);
-  assert.equal(design.growth.cta, '');
+  assert.equal(design.growth.cta, 'Follow for habits you can keep.');
+  assert.equal(design.growth.objective, 'follow');
   assert.ok(scoreShareability(quote) >= 70);
   assert.ok(design.duration >= 5 && design.duration <= 16);
 });
@@ -76,4 +77,11 @@ test('legacy posts teach the engine through their matching visual template', () 
   const design = growthDesignFor('Keep going when the result feels delayed.', 'reel', 1, posts);
   assert.equal(design.growth.selection, 'exploit');
   assert.equal(design.growth.recipe, 'editorial-calm');
+});
+
+test('measured follows outweigh engagement for recipes with the same reach', () => {
+  const post = { format: 'reel', design: { duration: 10 } };
+  const baseline = { reach: 1000, averageWatchTimeMs: 6000, shares: 20, saved: 30 };
+  assert.ok(calculatePerformanceScore(post, { ...baseline, follows: 15 }).score >
+    calculatePerformanceScore(post, { ...baseline, follows: 0 }).score);
 });

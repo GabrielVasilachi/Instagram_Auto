@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { readFile } from 'node:fs/promises';
+import { openAsBlob } from 'node:fs';
 import path from 'node:path';
 
 export function cloudinaryConfigured() {
@@ -19,7 +19,7 @@ export async function uploadToCloudinary(filePath, post) {
   const signatureText = `folder=${folder}&overwrite=true&public_id=${publicId}&timestamp=${timestamp}&unique_filename=false${process.env.CLOUDINARY_API_SECRET}`;
   const signature = createHash('sha1').update(signatureText).digest('hex');
   const body = new FormData();
-  body.set('file', new Blob([await readFile(filePath)]), path.basename(filePath));
+  body.set('file', await openAsBlob(filePath), path.basename(filePath));
   body.set('api_key', process.env.CLOUDINARY_API_KEY);
   body.set('timestamp', String(timestamp));
   body.set('folder', folder);
@@ -30,7 +30,7 @@ export async function uploadToCloudinary(filePath, post) {
   const resourceType = post.format === 'reel' ? 'video' : 'image';
   const response = await fetch(
     `https://api.cloudinary.com/v1_1/${process.env.CLOUDINARY_CLOUD_NAME}/${resourceType}/upload`,
-    { method: 'POST', body },
+    { method: 'POST', body, signal: AbortSignal.timeout(45_000) },
   );
   const result = await response.json();
   if (!response.ok) throw new Error(result.error?.message || 'Încărcarea materialului a eșuat.');

@@ -134,6 +134,24 @@ export async function loadDatabase() {
   };
 }
 
+export async function loadQueueContext(settings) {
+  const [scheduled, history] = await Promise.all([
+    databaseRequest('queue-slots', () => supabase.from('posts')
+      .select('format,scheduled_for')
+      .gte('scheduled_for', new Date().toISOString())
+      .order('scheduled_for').limit(250)),
+    databaseRequest('queue-history', () => supabase.from('posts')
+      .select('quote,format,design')
+      .order('scheduled_for', { ascending: false }).limit(90)),
+  ]);
+  return {
+    settings,
+    quoteCursor: settings.quoteCursor,
+    occupied: scheduled.map((post) => `${post.format}:${new Date(post.scheduled_for).toISOString().slice(0, 16)}`),
+    posts: history.reverse(),
+  };
+}
+
 export async function loadWorkerState() {
   const data = await databaseRequest('worker-state', () =>
     supabase.from('worker_state').select('run_id,source,status,started_at,finished_at,last_success_at,last_error,last_result').eq('id', 1).maybeSingle(),

@@ -1,9 +1,10 @@
 import ffmpegPath from 'ffmpeg-static';
 import { spawn } from 'node:child_process';
+import { FOLLOWER_STANDARD } from './follower-series.mjs';
 import { planReel } from './reel-plan.mjs';
 import { selectAssets } from './reel-assets.mjs';
 import { randomUUID } from 'node:crypto';
-import { mkdir, unlink, rename, readFile } from 'node:fs/promises';
+import { mkdir, unlink, rename, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { DESIGN_OPTIONS, normalizeAccent, normalizeDesign, sanitizeText } from './design.mjs';
@@ -14,6 +15,7 @@ const fontDirectory = path.join(root, 'assets', 'fonts');
 process.env.FONTCONFIG_FILE ||= path.join(fontDirectory, 'fonts.conf');
 process.env.XDG_CACHE_HOME ||= '/tmp/silent-forward-font-cache';
 const { default: sharp } = await import('sharp');
+sharp.cache({ memory: 16, files: 0, items: 32 });
 const fonts = {
   sans: { family: 'Inter', file: path.join(fontDirectory, 'Inter.ttf') },
   serif: { family: 'Lora', file: path.join(fontDirectory, 'Lora.ttf') },
@@ -84,10 +86,11 @@ function themeSvg(template, width, height) {
 
 function backgroundSvg(post, width, height, design) {
   const light = design.template === 'paper';
+  const follower = !post.storyPromotion && design.growth?.version === FOLLOWER_STANDARD;
   const topLabel = post.storyPromotion
     ? `NEW ${post.storyPromotion} · ${brandName.toUpperCase()}`
-    : brandName.toUpperCase();
-  const bottomLabel = post.storyPromotion
+    : (follower ? design.growth.series : brandName).toUpperCase();
+  const bottomLabel = follower && post.format === 'post' ? design.growth.cta : post.storyPromotion
     ? `WATCH NOW ON PROFILE · @${brandUsername}`
     : `@${brandUsername}`;
   const topY = post.format === 'reel' ? 260 : 105;
@@ -97,16 +100,18 @@ function backgroundSvg(post, width, height, design) {
     <radialGradient id="vignette"><stop offset=".45" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".3"/></radialGradient>
     <rect width="100%" height="100%" filter="url(#filmGrain)" opacity=".45"/><rect width="100%" height="100%" fill="url(#vignette)"/>
     <rect width="100%" height="100%" fill="#000" opacity="${design.overlayOpacity / 100}"/>
-    <text x="90" y="${topY}" fill="${light ? '#4f4a43' : '#8b9096'}" font-family="sans-serif" font-size="18" font-weight="700" letter-spacing="${post.storyPromotion ? 4 : 7}">${escapeXml(topLabel)}</text>
-    <text x="90" y="${bottomY}" fill="${light ? '#5e5850' : '#73787e'}" font-family="sans-serif" font-size="20" font-weight="${post.storyPromotion ? 700 : 400}" letter-spacing="${post.storyPromotion ? 2 : 0}">${escapeXml(bottomLabel)}</text>
+    ${follower ? `<path d="M90 ${topY - 36}H154" stroke="${normalizeAccent(post.accent)}" stroke-width="4"/>` : ''}
+    <text x="90" y="${topY}" fill="${light ? '#4f4a43' : '#8b9096'}" font-family="sans-serif" font-size="${follower ? 28 : 18}" font-weight="700" letter-spacing="${post.storyPromotion ? 4 : 7}">${escapeXml(topLabel)}</text>
+    <text x="90" y="${bottomY}" fill="${light ? '#5e5850' : '#73787e'}" font-family="sans-serif" font-size="${follower ? 32 : 20}" font-weight="${post.storyPromotion || follower ? 700 : 400}" letter-spacing="${post.storyPromotion ? 2 : 0}">${escapeXml(bottomLabel)}</text>
   </svg>`);
 }
 
-async function textOverlay(post, width, height, design) {
+async function textOverlay(post, width, height, design, cropped = false) {
   const font = fonts[design.font];
   const rawQuote = sanitizeText(post.quote, 220);
   const quote = design.textCase === 'uppercase' ? rawQuote.toUpperCase() : rawQuote;
-  const textColor = design.template === 'paper' ? '#171714' : '#f6f6f2';
+  const textColor = post.sceneRole === 'follow' ? normalizeAccent(post.accent) :
+    design.template === 'paper' ? '#171714' : '#f6f6f2';
   const contentWidth = post.format === 'reel' ? width - 300 : width - 180;
   let textBuffer = await sharp({
     text: {
@@ -139,29 +144,31 @@ async function textOverlay(post, width, height, design) {
       ? Math.round((width - 150) / 2)
       : design.textAlign === 'right'
         ? width - 240
-        : 90;
+        : post.format === 'reel' ? 120 : 90;
   const accent = await sharp({
     create: { width: 150, height: 12, channels: 4, background: normalizeAccent(post.accent) },
   })
     .png()
     .toBuffer();
 
-  return sharp({
-    create: { width, height, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } },
+  const top = cropped ? y : 0;
+  const buffer = await sharp({
+    create: { width, height: cropped ? textHeight + 48 : height, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } },
   })
     .composite([
-      { input: textBuffer, left: post.format === 'reel' ? 120 : 90, top: y },
-      { input: accent, left: accentX, top: Math.min(height - 140, y + textHeight + 34) },
+      { input: textBuffer, left: post.format === 'reel' ? 120 : 90, top: y - top },
+      { input: accent, left: accentX, top: Math.min(height - 140, y + textHeight + 34) - top },
     ])
     .png()
     .toBuffer();
+  return { buffer, top };
 }
 
 export async function generateImage(post, targetPath, layer = 'complete') {
   const width = 1080;
   const height = post.format === 'reel' ? 1920 : 1350;
   const design = normalizeDesign(post.design, post.format);
-  const overlay = layer === 'background' ? null : await textOverlay(post, width, height, design);
+  const overlay = layer === 'background' ? null : (await textOverlay(post, width, height, design)).buffer;
 
   if (layer === 'text') {
     await sharp(overlay).png({ quality: 96 }).toFile(targetPath);
@@ -212,13 +219,13 @@ function backgroundFilter(animation, width, height, duration) {
   return filters[animation] ?? filters.drift;
 }
 
-function runFfmpeg(args, timeout = 180_000) {
+function runFfmpeg(args, timeout = 90_000) {
   return new Promise((resolve, reject) => {
     const child = spawn(ffmpegPath, args);
     let error = '';
     const timer = setTimeout(() => {
       child.kill('SIGKILL');
-      reject(new Error('Reel render exceeded three minutes. Existing media is safe.'));
+      reject(new Error('Reel render timeout after 90 seconds.'));
     }, timeout);
     child.stderr.on('data', (chunk) => {
       error = (error + chunk).slice(-5000);
@@ -289,8 +296,8 @@ export async function generateAudioPreview(music, directory) {
 export async function validateReel(file) {
   // Decode both streams before any durable media reference is replaced.
   await runFfmpeg(
-    ['-v', 'error', '-xerror', '-i', file, '-map', '0:v:0', '-map', '0:a:0', '-f', 'null', '-'],
-    60_000,
+    ['-v', 'error', '-xerror', '-threads', '2', '-i', file, '-map', '0:v:0', '-map', '0:a:0', '-f', 'null', '-'],
+    30_000,
   );
 }
 
@@ -300,7 +307,7 @@ export async function generateMedia(post, mediaDirectory) {
     return generateImage(post, path.join(mediaDirectory, `${post.id}.png`));
   if (!ffmpegPath) throw new Error('Generatorul video nu este disponibil.');
   const design = normalizeDesign(post.design, post.format);
-  const plan = planReel(post.quote, design);
+  const plan = planReel(post.quote, post.storyPromotion ? {} : design);
   const duration = plan.duration;
   const assets = await selectAssets(plan.mood, post.quote);
   if (design.music === 'silent') delete assets.audio;
@@ -310,8 +317,9 @@ export async function generateMedia(post, mediaDirectory) {
   const videoPath = path.join(mediaDirectory, `${post.id}.mp4`);
   const temporary = [backgroundPath, temporaryVideo];
   try {
-    await generateImage(post, backgroundPath, 'background');
     const args = ['-y', '-threads', '2', '-filter_complex_threads', '1'];
+    if (!assets.video || design.template === 'obsidian')
+      await generateImage(post, backgroundPath, 'background');
     args.push(
       ...(assets.video && design.template !== 'obsidian'
         ? ['-stream_loop', '-1', '-i', assets.video]
@@ -344,13 +352,19 @@ export async function generateMedia(post, mediaDirectory) {
       const scene = plan.scenes[i];
       const file = `${prefix}-${i}.png`;
       temporary.push(file);
-      await generateImage({ ...post, quote: scene.text }, file, 'text');
-      args.push('-loop', '1', '-framerate', '30', '-i', file);
+      const { buffer, top } = await textOverlay(
+        { ...post, quote: scene.text, sceneRole: scene.role }, 1080, 1920, design, true,
+      );
+      await writeFile(file, buffer);
+      args.push('-threads', '1', '-loop', '1', '-framerate', '30', '-i', file);
+      const fadeIn = scene.enter ? `,fade=t=in:st=${scene.start}:d=${scene.enter}:alpha=1` : '';
+      const progress = `min(1,max(0,(t-${scene.start})/${scene.enter || 1}))`;
+      const motion = scene.enter ? `+12*pow(1-${progress},3)` : '';
       filters.push(
-        `[${i + 1 + inputOffset}:v]format=rgba,fade=t=in:st=${scene.start}:d=0.35:alpha=1,fade=t=out:st=${scene.end - 0.4}:d=0.4:alpha=1[text${i}]`,
+        `[${i + 1 + inputOffset}:v]format=rgba${fadeIn},fade=t=out:st=${scene.end - scene.exit}:d=${scene.exit}:alpha=1[text${i}]`,
       );
       filters.push(
-        `[${previous}][text${i}]overlay=x=0:y='8*(1-min(1,max(0,(t-${scene.start})/0.35)))':enable='between(t,${scene.start},${scene.end})'[stage${i}]`,
+        `[${previous}][text${i}]overlay=x=0:y='${top}${motion}':enable='between(t,${scene.start},${scene.end})'[stage${i}]`,
       );
       previous = `stage${i}`;
     }
@@ -361,7 +375,7 @@ export async function generateMedia(post, mediaDirectory) {
         : ['-f', 'lavfi', '-i', audioSource(design.music, duration)]),
     );
     filters.push(
-      `[${previous}]fade=t=in:st=0:d=0.15,fade=t=out:st=${duration - 0.25}:d=0.25,format=yuv420p[v]`,
+      `[${previous}]${plan.scenes[0].enter ? 'fade=t=in:st=0:d=0.15,' : ''}fade=t=out:st=${duration - 0.25}:d=0.25,format=yuv420p[v]`,
     );
     filters.push(`[${audioIndex}:a]${audioMix(duration, design.musicVolume / 100)}[a]`);
     args.push(

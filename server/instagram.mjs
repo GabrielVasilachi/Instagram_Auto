@@ -10,21 +10,25 @@ export async function instagramRequest(pathname, options = {}) {
     access_token: process.env.INSTAGRAM_ACCESS_TOKEN,
   };
   for (const [key, value] of Object.entries(parameters)) url.searchParams.set(key, String(value));
-  const response = await fetch(url, { method: options.method || 'GET' });
+  const response = await fetch(url, { method: options.method || 'GET', signal: AbortSignal.timeout(10_000) });
   const result = await response.json();
-  if (!response.ok || result.error)
-    throw new Error(result.error?.message || 'Instagram API a returnat o eroare.');
+  if (!response.ok || result.error) {
+    const error = new Error(result.error?.message || 'Instagram API a returnat o eroare.');
+    error.code = result.error?.code;
+    error.httpStatus = response.status;
+    throw error;
+  }
   return result;
 }
 
 export async function waitForContainer(containerId) {
-  for (let attempt = 0; attempt < 36; attempt += 1) {
+  for (let attempt = 0; attempt < 12; attempt += 1) {
     const status = await instagramRequest(containerId, {
       parameters: { fields: 'status_code,status' },
     });
     if (status.status_code === 'FINISHED') return;
     if (status.status_code === 'ERROR' || status.status_code === 'EXPIRED')
-      throw new Error(status.status || 'Instagram nu a procesat videoclipul.');
+      throw new Error(`Instagram container ${status.status_code}: ${status.status || 'procesarea media a eșuat.'}`);
     await new Promise((resolve) => setTimeout(resolve, 5000));
   }
   throw new Error('Instagram procesează videoclipul prea mult timp.');
@@ -41,10 +45,7 @@ export async function publishToInstagram(post, publicUrl) {
   // Images can also remain IN_PROGRESS briefly after Meta accepts their URL.
   // Publishing before FINISHED produces the misleading "Media ID is not available" error.
   await waitForContainer(container.id);
-  return instagramRequest(`${accountId}/media_publish`, {
-    method: 'POST',
-    parameters: { creation_id: container.id },
-  });
+  return finalizeContainer(accountId, container.id);
 }
 
 export async function publishStoryToInstagram(publicUrl) {
@@ -55,10 +56,19 @@ export async function publishStoryToInstagram(publicUrl) {
     parameters: { media_type: 'STORIES', video_url: publicUrl },
   });
   await waitForContainer(container.id);
-  return instagramRequest(`${accountId}/media_publish`, {
-    method: 'POST',
-    parameters: { creation_id: container.id },
-  });
+  return finalizeContainer(accountId, container.id);
+}
+
+async function finalizeContainer(accountId, containerId) {
+  try {
+    return await instagramRequest(`${accountId}/media_publish`, {
+      method: 'POST',
+      parameters: { creation_id: containerId },
+    });
+  } catch (error) {
+    if (error.httpStatus && error.httpStatus < 500) throw error;
+    throw new Error('Confirmarea publicării lipsește. Verifică Instagram înainte de reîncercare.', { cause: error });
+  }
 }
 
 export async function fetchMediaInsights(post) {
@@ -67,9 +77,16 @@ export async function fetchMediaInsights(post) {
     post.format === 'reel'
       ? ['views', 'reach', 'likes', 'comments', 'shares', 'saved', 'ig_reels_avg_watch_time']
       : ['views', 'reach', 'likes', 'comments', 'shares', 'saved'];
-  const result = await instagramRequest(`${post.instagramMediaId}/insights`, {
-    parameters: { metric: metricNames.join(',') },
+  const request = (metrics) => instagramRequest(`${post.instagramMediaId}/insights`, {
+    parameters: { metric: metrics.join(',') },
   });
+  let result;
+  try {
+    result = await request([...metricNames, 'follows']);
+  } catch (error) {
+    if (error.code !== 100) throw error;
+    result = await request(metricNames);
+  }
   const values = Object.fromEntries(
     (result.data ?? []).map((item) => [
       item.name,
@@ -78,6 +95,7 @@ export async function fetchMediaInsights(post) {
   );
   return {
     views: values.views ?? 0,
+    follows: values.follows ?? null,
     reach: values.reach ?? 0,
     likes: values.likes ?? 0,
     comments: values.comments ?? 0,

@@ -1,3 +1,5 @@
+import { FOLLOWER_STANDARD } from './follower-series.mjs';
+
 export const DESIGN_OPTIONS = {
   templates: [
     'midnight',
@@ -102,6 +104,7 @@ function normalizeGrowthState(value) {
     pillar: sanitizeText(value.pillar, 40),
     hook: sanitizeText(value.hook, 100),
     cta: sanitizeText(value.cta, 120),
+    series: sanitizeText(value.series, 60),
     objective: ['share', 'save', 'retain', 'follow'].includes(value.objective)
       ? value.objective
       : 'share',
@@ -114,6 +117,7 @@ function normalizePerformanceState(value) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
   return {
     checkedAt: value.checkedAt ? String(value.checkedAt) : null,
+    follows: value.follows == null ? null : numberBetween(value.follows, 0, 1_000_000_000, 0),
     views: numberBetween(value.views, 0, 1_000_000_000, 0),
     reach: numberBetween(value.reach, 0, 1_000_000_000, 0),
     likes: numberBetween(value.likes, 0, 1_000_000_000, 0),
@@ -147,7 +151,7 @@ export function normalizeDesign(value = {}, format = 'post') {
     letterSpacing: numberBetween(input.letterSpacing, -2, 12, defaults.letterSpacing),
     lineHeight: numberBetween(input.lineHeight, 90, 160, defaults.lineHeight),
     overlayOpacity: numberBetween(input.overlayOpacity, 0, 65, defaults.overlayOpacity),
-    reelVersion: input.reelVersion === '2026.2' ? '2026.2' : null,
+    reelVersion: ['2026.2', FOLLOWER_STANDARD].includes(input.reelVersion) ? input.reelVersion : null,
     story: normalizeStoryState(input.story),
     growth: normalizeGrowthState(input.growth),
     performance: normalizePerformanceState(input.performance),

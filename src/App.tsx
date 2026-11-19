@@ -33,6 +33,7 @@ type GrowthState = {
   pillar: string;
   hook: string;
   cta: string;
+  series?: string;
   objective: 'share' | 'save' | 'retain' | 'follow';
   shareabilityScore: number;
   selection: 'explore' | 'exploit';
@@ -41,6 +42,7 @@ type PerformanceState = {
   checkedAt: string;
   views: number;
   reach: number;
+  follows?: number | null;
   likes: number;
   comments: number;
   shares: number;
@@ -700,7 +702,7 @@ function VisualPreview({ draft, branding }: { draft: Draft; branding: Dashboard[
   const t = plan ? clock % plan.duration : 0;
   const scene = plan?.scenes.find((s) => t >= s.start && t < s.end);
   const opacity = scene
-    ? Math.max(0, Math.min(1, (t - scene.start) / 0.35, (scene.end - t) / 0.4))
+    ? Math.max(0, Math.min(1, scene.enter ? (t - scene.start) / scene.enter : 1, (scene.end - t) / scene.exit))
     : 0;
   const fonts: Record<string, string> = {
     sans: 'Studio Sans',
@@ -716,7 +718,8 @@ function VisualPreview({ draft, branding }: { draft: Draft; branding: Dashboard[
     textTransform:
       draft.design.textCase === 'uppercase' ? ('uppercase' as const) : ('none' as const),
     opacity: plan ? opacity : 1,
-    transform: plan ? `translateY(${(1 - opacity) * 2.7}px)` : undefined,
+    color: scene?.role === 'follow' ? draft.accent : undefined,
+    transform: scene?.enter ? `translateY(${4 * (1 - Math.min(1, (t - scene.start) / scene.enter)) ** 3}px)` : undefined,
   };
   return (
     <>
@@ -724,7 +727,7 @@ function VisualPreview({ draft, branding }: { draft: Draft; branding: Dashboard[
         className={`post-preview ${draft.format} theme-${draft.design.template} position-${draft.design.textPosition}`}
         style={{ '--overlay': draft.design.overlayOpacity / 100 } as React.CSSProperties}
       >
-        <span className="preview-mark">{branding.name.toUpperCase()}</span>
+        <span className="preview-mark">{(draft.design.growth?.series || branding.name).toUpperCase()}</span>
         <div className="preview-message" style={style}>
           <p>{plan ? scene?.text || '' : draft.quote}</p>
           <span
@@ -732,7 +735,7 @@ function VisualPreview({ draft, branding }: { draft: Draft; branding: Dashboard[
             style={{ background: draft.accent }}
           />
         </div>
-        <small>@{branding.username}</small>
+        <small>{draft.format === 'post' && draft.design.growth?.series ? draft.design.growth.cta : `@${branding.username}`}</small>
       </div>
       {plan && (
         <p className="settings-note">
@@ -2262,6 +2265,9 @@ function Analytics({
       ) /
       Math.max(1, measuredReels.length) /
       1000;
+  const attributed = measured.filter((post) => post.design.performance?.follows != null);
+  const follows = attributed.reduce((sum, post) => sum + (post.design.performance?.follows ?? 0), 0);
+  const attributedReach = attributed.reduce((sum, post) => sum + (post.design.performance?.reach ?? 0), 0);
   const recipeGroups = measured.reduce<Record<string, { total: number; count: number }>>(
     (result, post) => {
       const recipe = post.design.growth?.recipe || post.design.template;
@@ -2279,6 +2285,12 @@ function Analytics({
   return (
     <>
       <section className="analytics-cards">
+        <Metric
+          label="Urmăritori câștigați"
+          value={attributed.length ? follows : '—'}
+          detail={attributedReach ? `${(1000 * follows / attributedReach).toFixed(1)} la 1.000 reach cumulat` : 'Date de atribuire indisponibile'}
+          trend="Conversie"
+        />
         <Metric
           label="Views măsurate"
           value={totalViews}

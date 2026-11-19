@@ -25,6 +25,7 @@ import {
   insertPost,
   insertPosts,
   loadDatabase,
+  loadQueueContext,
   loadDueInsightId,
   loadDuePostIds,
   loadDueStoryId,
@@ -65,6 +66,14 @@ import { isEditorMediaUrl } from './video-editor/assets.mjs';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const mediaDirectory = process.env.VERCEL ? '/tmp/generated' : path.join(root, 'generated');
 const quotesFile = path.join(root, 'content', 'quotes.json');
+const editorialFile = path.join(root, 'content', 'follower-editions.json');
+async function loadQueueQuotes() {
+  const [editions, quotes] = await Promise.all([
+    readFile(editorialFile, 'utf8').then(JSON.parse),
+    readFile(quotesFile, 'utf8').then(JSON.parse),
+  ]);
+  return [...Object.values(editions).flat().map((beats) => beats.join(' ')), ...quotes];
+}
 const port = Number(process.env.PORT || process.env.API_PORT || 5174);
 const app = express();
 const loginAttempts = new Map();
@@ -442,17 +451,14 @@ app.get('/api/posts/:id/media', async (request, response) => {
 });
 
 async function fillQueue() {
-  const database = await loadDatabase();
-  if (!database.settings.autopilot) return [];
-  const quotes = JSON.parse(await readFile(quotesFile, 'utf8'));
+  const settings = await loadSettings();
+  if (!settings.autopilot) return [];
+  const database = await loadQueueContext(settings);
+  const quotes = await loadQueueQuotes();
   const additions = [];
   let cursor = database.quoteCursor;
 
-  const occupied = new Set(
-    database.posts.map(
-      (post) => `${post.format}:${new Date(post.scheduledFor).toISOString().slice(0, 16)}`,
-    ),
-  );
+  const occupied = new Set(database.occupied);
   const plans = [
     {
       format: 'reel',
@@ -580,15 +586,28 @@ app.post('/api/insights/refresh', async (request, response) => {
   }
 });
 
-async function publishPost(postId) {
+async function verifyInstagramPublisher() {
+  try {
+    await instagramRequest('me', { parameters: { fields: 'user_id' } });
+  } catch (error) {
+    if ([190, 102].includes(error.code)) {
+      throw new Error('Instagram: autentificare expirată sau invalidă. Actualizează tokenul.', { cause: error });
+    }
+    throw error;
+  }
+}
+
+async function publishPost(postId, verified = false) {
   const existing = await loadPost(postId);
   if (!existing) throw new Error('Postarea nu există.');
   if (existing.status === 'published') return existing;
-  const post = await claimPostForPublishing(postId);
+  if (!verified) await verifyInstagramPublisher();
+  let post = await claimPostForPublishing(postId);
   if (!post) throw new Error('Postarea este deja procesată de un alt job.');
   const attempt = (post.retryCount ?? 0) + 1;
   let filePath;
   let result;
+  let confirmed = false;
   try {
     await mkdir(mediaDirectory, { recursive: true });
     let publicUrl;
@@ -601,8 +620,10 @@ async function publishPost(postId) {
     } else {
       filePath = await generateMedia(post, mediaDirectory);
       publicUrl = await uploadToCloudinary(filePath, post);
+      post = await savePost({ ...post, mediaUrl: publicUrl, design: { ...post.design, reelVersion: REEL_VERSION } });
     }
     const published = await publishToInstagram(post, publicUrl);
+    confirmed = true;
     result = await savePost({
       ...post,
       status: 'published',
@@ -618,36 +639,40 @@ async function publishPost(postId) {
       nextAttemptAt: null,
     });
   } catch (error) {
+    if (confirmed) throw error; // Leave the claim for reconciliation if the final database write failed.
     const message = error instanceof Error ? error.message : 'Publicarea a eșuat.';
-    const canRetry = isRetryablePublishError(error) && attempt < 5;
+    const authExpired = [190, 102].includes(error.code);
+    const canRetry = authExpired || (isRetryablePublishError(error) && attempt < 5);
     await savePost({
       ...post,
       status: canRetry ? 'scheduled' : 'failed',
       error: message,
-      retryCount: attempt,
-      nextAttemptAt: canRetry ? new Date(Date.now() + retryDelayMs(attempt)).toISOString() : null,
+      retryCount: authExpired ? attempt - 1 : attempt,
+      nextAttemptAt: canRetry ? new Date(Date.now() + (authExpired ? 15 * 60_000 : retryDelayMs(attempt))).toISOString() : null,
     });
     throw error;
   } finally {
     if (filePath) await unlink(filePath).catch(() => {});
   }
 
-  try {
-    result = await publishStoryPromotion(result);
-  } catch (error) {
-    console.error(`[story] ${error instanceof Error ? error.message : error}`);
-    result = await loadPost(result.id);
-  }
-  await fillQueue();
   return result;
 }
 
 async function publishStoryPromotion(post) {
   const current = post.design?.story;
   if (current?.status === 'published') return post;
+  if (current?.status === 'publishing') {
+    const error = 'Confirmarea Story lipsește. Verifică Instagram înainte de reîncercare.';
+    if (Date.parse(current.nextAttemptAt) <= Date.now())
+      await savePost({ ...post, design: { ...post.design, story: {
+        ...current, status: 'failed', error, retryCount: 5, nextAttemptAt: null,
+      } } });
+    throw new Error(error);
+  }
   const attempt = (current?.retryCount ?? 0) + 1;
   const leaseUntil = new Date(Date.now() + 15 * 60_000).toISOString();
   let filePath;
+  let confirmed = false;
 
   const publishing = await savePost({
     ...post,
@@ -669,6 +694,7 @@ async function publishStoryPromotion(post) {
     filePath = promotion.filePath;
     const publicUrl = await uploadToCloudinary(filePath, promotion.uploadPost);
     const published = await publishStoryToInstagram(publicUrl);
+    confirmed = true;
     return await savePost({
       ...publishing,
       design: {
@@ -685,7 +711,9 @@ async function publishStoryPromotion(post) {
       },
     });
   } catch (error) {
+    if (confirmed) throw error;
     const message = error instanceof Error ? error.message : 'Story-ul nu a putut fi publicat.';
+    const retry = isRetryablePublishError(error) && attempt < 5;
     await savePost({
       ...publishing,
       design: {
@@ -694,9 +722,8 @@ async function publishStoryPromotion(post) {
           ...publishing.design.story,
           status: 'failed',
           error: message,
-          retryCount: attempt,
-          nextAttemptAt:
-            attempt < 5 ? new Date(Date.now() + retryDelayMs(attempt)).toISOString() : null,
+          retryCount: retry ? attempt : 5,
+          nextAttemptAt: retry ? new Date(Date.now() + retryDelayMs(attempt)).toISOString() : null,
         },
       },
     });
@@ -756,12 +783,19 @@ async function collectNextMediaInsight() {
 }
 
 app.post('/api/posts/:id/publish', async (request, response) => {
+  const owner = randomUUID();
+  if (!await claimWorkerLease('instagram-publisher', owner, 330))
+    return response.status(409).json({ error: 'Workerul publică deja. Încearcă din nou.' });
   try {
     response.json(await publishPost(request.params.id));
   } catch (error) {
     response
       .status(400)
       .json({ error: error instanceof Error ? error.message : 'Publicarea a eșuat.' });
+  } finally {
+    await releaseWorkerLease('instagram-publisher', owner).catch((error) =>
+      console.error('[publisher-lease]', error.message),
+    );
   }
 });
 
@@ -836,12 +870,13 @@ async function publishDuePosts(limit = 1) {
   const settings = await loadSettings();
   if (!settings.autopilot) return [];
   const due = await loadDuePostIds(new Date(), limit);
+  if (due.length) await verifyInstagramPublisher();
   const results = [];
   const errors = [];
   for (const id of due) {
     try {
       console.log(`[publisher] Publicăm ${id}`);
-      results.push(await publishPost(id));
+      results.push(await publishPost(id, true));
       console.log(`[publisher] Publicare finalizată: ${id}`);
     } catch (error) {
       errors.push(error);
@@ -858,7 +893,7 @@ async function runRemoteWorker(options = {}) {
   const source = options.source || 'manual';
   const runId = randomUUID();
   const checkedAt = new Date().toISOString();
-  const acquired = await claimWorkerLease('instagram-publisher', runId, 240);
+  const acquired = await claimWorkerLease('instagram-publisher', runId, 330);
   if (!acquired) {
     return {
       ok: true,
@@ -874,12 +909,20 @@ async function runRemoteWorker(options = {}) {
   try {
     await beginWorkerRun(runId, source);
     runStarted = true;
-    const additions = options.maintenance === false ? [] : await fillQueue();
     const published = await publishDuePosts(1);
-    const stories = await publishDueStories(1);
+    const stories = [];
+    let additions = [];
+    if (!published.length) {
+      if (await loadDueStoryId()) {
+        await verifyInstagramPublisher();
+        stories.push(...await publishDueStories(1));
+      } else if (options.maintenance !== false) {
+        additions = await fillQueue();
+      }
+    }
     let insight = null;
     try {
-      if (options.maintenance !== false) insight = await collectNextMediaInsight();
+      if (options.maintenance !== false && !published.length && !stories.length) insight = await collectNextMediaInsight();
     } catch (error) {
       console.warn(`[insights] ${error instanceof Error ? error.message : error}`);
     }
@@ -899,7 +942,7 @@ async function runRemoteWorker(options = {}) {
     await finishWorkerRun(runId, {
       status: 'succeeded',
       result,
-      maintenance: options.maintenance !== false,
+      maintenance: options.maintenance !== false && !published.length && !stories.length,
     });
     return result;
   } catch (error) {
@@ -971,7 +1014,7 @@ if (!process.env.VERCEL && process.env.NODE_ENV !== 'test') {
     await fillQueue();
     cron.schedule(
       '* * * * *',
-      () => publishDuePosts().catch((error) => console.error(`[scheduler] ${error.message}`)),
+      () => runRemoteWorker({ source: 'local', maintenance: false }).catch((error) => console.error(`[scheduler] ${error.message}`)),
       { timezone: 'Europe/Chisinau' },
     );
     cron.schedule(

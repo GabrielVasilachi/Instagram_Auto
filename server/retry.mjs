@@ -24,7 +24,7 @@ export function isTransientRemoteError(error) {
 }
 
 export function isRetryablePublishError(error) {
-  if (isTransientRemoteError(error)) return true;
+  if (isTransientRemoteError(error) || error.httpStatus === 429 || error.httpStatus >= 500) return true;
   const message = String(error?.message ?? error ?? '').toLowerCase();
   return (
     message.includes('try again') ||

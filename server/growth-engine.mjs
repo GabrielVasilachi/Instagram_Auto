@@ -1,3 +1,4 @@
+import { seriesFor } from './follower-series.mjs';
 import { MOODS, moodFor, planReel, REEL_VERSION } from './reel-plan.mjs';
 import { normalizeDesign, sanitizeText } from './design.mjs';
 
@@ -184,13 +185,6 @@ const hooks = {
   purpose: ['MOVE WITH DIRECTION, NOT PRESSURE', 'REMEMBER WHAT YOU ARE BUILDING'],
 };
 
-const ctas = {
-  share: ['SEND THIS TO SOMEONE BUILDING QUIETLY', 'SHARE THIS WITH THE PERSON WHO NEEDS IT TODAY'],
-  save: ['SAVE THIS FOR THE DAY YOUR FOCUS GETS TESTED', 'KEEP THIS CLOSE FOR THE HARD DAYS'],
-  retain: ['READ IT AGAIN. THE SECOND TIME HITS DIFFERENT', 'PAUSE HERE. LET THE MESSAGE LAND'],
-  follow: ['FOLLOW @SILENTFORWARD FOR TOMORROW’S RESET', 'BUILD QUIETLY WITH @SILENTFORWARD'],
-};
-
 export function detectPillar(quote) {
   const text = sanitizeText(quote, 220);
   return pillarRules.find(([, pattern]) => pattern.test(text))?.[0] ?? 'growth';
@@ -208,10 +202,6 @@ export function scoreShareability(quote) {
   if (/[.!?]$/.test(text)) score += 4;
   if (words.length > 25) score -= 18;
   return Math.max(0, Math.min(100, score));
-}
-
-function objectiveFor(cursor) {
-  return ['share', 'save', 'retain', 'share', 'follow'][cursor % 5];
 }
 
 function recipePerformance(posts, format) {
@@ -235,9 +225,8 @@ function recipePerformance(posts, format) {
   return new Map([...groups].map(([key, value]) => [key, value.score / value.weight]));
 }
 
-export function growthDesignFor(quote, format = 'reel', cursor = 0, posts = []) {
-  const pillar = detectPillar(quote);
-  const objective = objectiveFor(cursor);
+export function growthDesignFor(quote, format = 'reel', cursor = 0, posts = [], pillar = detectPillar(quote)) {
+  const series = seriesFor(pillar);
   const performance = recipePerformance(posts, format);
   const recipes = format === 'reel' ? GROWTH_RECIPES.slice(0, 4) : GROWTH_RECIPES;
   const ranked = recipes
@@ -249,7 +238,6 @@ export function growthDesignFor(quote, format = 'reel', cursor = 0, posts = []) 
     ? ranked[cursor % Math.min(3, ranked.length)].recipe
     : recipes[cursor % recipes.length];
   const pillarHooks = hooks[pillar] ?? hooks.growth;
-  const objectiveCtas = ctas[objective];
   const visual = normalizeDesign(
     {
       ...recipe,
@@ -276,9 +264,8 @@ export function growthDesignFor(quote, format = 'reel', cursor = 0, posts = []) 
     visual.textPosition = 'center';
     visual.animation = 'pan';
     visual.musicVolume = 55;
-    visual.duration = planReel(quote).duration;
   }
-  return {
+  const design = {
     ...visual,
     growth: {
       version: GROWTH_VERSION,
@@ -288,13 +275,16 @@ export function growthDesignFor(quote, format = 'reel', cursor = 0, posts = []) 
         format === 'reel'
           ? planReel(quote).scenes[0].text
           : pillarHooks[Math.floor(cursor / 2) % pillarHooks.length],
-      cta: cursor % 5 === 0 ? 'Remember this.' : '',
-      objective,
+      cta: `Follow for ${series.promise}.`,
+      series: series.name,
+      objective: 'follow',
       shareabilityScore: scoreShareability(quote),
       selection: exploit ? 'exploit' : 'explore',
     },
     performance: null,
   };
+  if (format === 'reel') design.duration = planReel(quote, design).duration;
+  return design;
 }
 
 export function calculatePerformanceScore(post, metrics) {
@@ -316,9 +306,11 @@ export function calculatePerformanceScore(post, metrics) {
         28 * Math.min(1, saveRate / 0.04) +
         20 * Math.min(1, likeRate / 0.08) +
         16 * Math.min(1, commentRate / 0.02);
+  const conversion = Math.min(1, (Number(metrics.follows) || 0) / reach / 0.015);
+  const weighted = metrics.follows == null ? raw : 0.45 * raw + 55 * conversion;
   const confidence = Math.min(1, reach / 250);
   return {
-    score: Math.round(raw * confidence + 50 * (1 - confidence)),
+    score: Math.round(weighted * confidence + 50 * (1 - confidence)),
     confidence: Math.round(confidence * 100),
   };
 }

@@ -20,3 +20,11 @@ Each person needs **their own Supabase project, Cloudinary account, Meta app, an
 Supabase checks due work in PostgreSQL every minute and calls Vercel only for a due post, Story, expired claim, or hourly maintenance. This keeps scheduled publishing close to the selected minute and catches work missed during a deploy or outage. In the dashboard, check the Instagram account name and last worker run under **Settings**, then schedule a test post. When it looks right, turn on **Autopilot** under **Automation**. It prepares three Reels a day and two posts a week in your selected time zone; each publication also creates a Story. Leave `ENABLE_LOCAL_WORKER` off when online automation is active.
 
 Meta tokens can expire. If the Instagram connection stops working, get a new token, update `INSTAGRAM_ACCESS_TOKEN` in Vercel, and redeploy. The app does not refresh tokens automatically.
+
+## Recovering after expired Instagram credentials
+
+Generate a valid token for the same professional account in Meta, update `INSTAGRAM_ACCESS_TOKEN` in Vercel, and deploy the updated worker. Update the GitHub Actions secret too if you use the manual fallback. Apply `20261119_publisher_backoff.sql` in the Supabase SQL Editor. The scheduler skips dispatch while a worker holds its lease and waits 15 minutes after a recorded authentication failure.
+
+After deployment, check that Settings shows a connected Instagram account. Watch the next scheduled publication for a saved Instagram media ID and a corresponding post on the account. Before retrying a historical failure, check the profile for posts whose confirmation was interrupted. Reschedule selected missed episodes across future slots to avoid a burst.
+
+The queue stores the editorial design and caption. Use `node scripts/redesign-planned.mjs` to preview a one-time conversion of older automatically scheduled material and add `--apply` to save the changes. The script saves the previous rows locally before applying the changes.

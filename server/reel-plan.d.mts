@@ -3,6 +3,8 @@ export type ReelScene = {
   role: string;
   start: number;
   hold: number;
+  enter: number;
+  exit: number;
   duration: number;
   end: number;
 };

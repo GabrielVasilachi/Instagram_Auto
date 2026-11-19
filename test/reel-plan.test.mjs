@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { planReel, chooseQuote, similar, moodFor } from '../server/reel-plan.mjs';
+import { planReel, chooseQuote, similar, moodFor, REEL_VERSION } from '../server/reel-plan.mjs';
 import { refreshScheduledReel, eligibleForRefresh } from '../server/refresh-reels.mjs';
 
 test('scenes preserve every word and give reading time outside transitions', () => {
@@ -98,4 +98,14 @@ test('refresh excludes published, due, static and editor content', () => {
     { design: { editorMedia: { url: 'video' } } },
   ])
     assert.equal(eligibleForRefresh({ ...post, ...override }), false);
+});
+
+test('follower reels open on the hook and hold the last card for reading', () => {
+  const cta = 'Follow for practical focus resets.';
+  const plan = planReel('Too many tabs open? Choose one task.', { growth: { version: REEL_VERSION, cta } });
+  assert.equal(plan.scenes[0].start, 0);
+  assert.equal(plan.scenes[0].enter, 0);
+  assert.equal(plan.scenes.at(-1).text, cta);
+  assert.equal(plan.scenes.at(-1).role, 'follow');
+  assert.ok(plan.scenes.at(-1).hold >= 2.45);
 });
