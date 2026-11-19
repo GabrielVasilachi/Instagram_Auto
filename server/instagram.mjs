@@ -1,16 +1,24 @@
+import { getInstagramCredential } from './instagram-credential.mjs';
+
 export function instagramConfigured() {
-  return Boolean(process.env.INSTAGRAM_ACCESS_TOKEN && process.env.INSTAGRAM_ACCOUNT_ID);
+  return Boolean((process.env.INSTAGRAM_ACCESS_TOKEN || process.env.VERCEL) && process.env.INSTAGRAM_ACCOUNT_ID);
 }
 
 export async function instagramRequest(pathname, options = {}) {
-  if (!process.env.INSTAGRAM_ACCESS_TOKEN) throw new Error('Tokenul Instagram lipsește.');
+  const token = await getInstagramCredential();
+  return instagramRequestWithToken(token, pathname, options);
+}
+
+export async function instagramRequestWithToken(token, pathname, options = {}) {
+  if (!token) throw new Error('Tokenul Instagram lipsește.');
   const url = new URL(`https://graph.instagram.com/${pathname.replace(/^\//, '')}`);
-  const parameters = {
-    ...(options.parameters || {}),
-    access_token: process.env.INSTAGRAM_ACCESS_TOKEN,
-  };
-  for (const [key, value] of Object.entries(parameters)) url.searchParams.set(key, String(value));
-  const response = await fetch(url, { method: options.method || 'GET', signal: AbortSignal.timeout(10_000) });
+  for (const [key, value] of Object.entries(options.parameters ?? {}))
+    url.searchParams.set(key, String(value));
+  const response = await fetch(url, {
+    method: options.method || 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+    signal: AbortSignal.timeout(10_000),
+  });
   const result = await response.json();
   if (!response.ok || result.error) {
     const error = new Error(result.error?.message || 'Instagram API a returnat o eroare.');

@@ -45,9 +45,11 @@ import {
   fetchMediaInsights,
   instagramConfigured,
   instagramRequest,
+  instagramRequestWithToken,
   publishStoryToInstagram,
   publishToInstagram,
 } from './instagram.mjs';
+import { configureProductionInstagram } from './instagram-credential.mjs';
 import {
   generateAudioPreview,
   generateImage,
@@ -187,6 +189,34 @@ app.post('/api/worker/run', async (request, response) => {
 });
 
 app.use('/api', requireAuthentication, validateOrigin);
+app.post('/api/settings/instagram-credential', async (request, response) => {
+  if (!process.env.VERCEL) return response.sendStatus(404);
+  const attempts = attemptState(request);
+  if (attempts.count >= 8) return response.sendStatus(429);
+  if (!passwordMatches(request.body?.password, process.env.ADMIN_PASSWORD)) {
+    attempts.count += 1;
+    return response.sendStatus(401);
+  }
+  const token = String(request.body?.token ?? '').trim();
+  if (!/^[A-Za-z0-9_-]{40,4096}$/.test(token)) {
+    return response.status(400).json({ error: 'Format de token Instagram invalid.' });
+  }
+  let account;
+  try {
+    account = await instagramRequestWithToken(token, 'me', {
+      parameters: { fields: 'user_id,username' },
+    });
+  } catch {
+    return response.status(400).json({ error: 'Meta a respins tokenul Instagram.' });
+  }
+  if (![account.user_id, account.id].filter(Boolean).map(String).includes(process.env.INSTAGRAM_ACCOUNT_ID)) {
+    return response.status(400).json({ error: 'Tokenul nu aparține contului Instagram configurat.' });
+  }
+  await configureProductionInstagram(token);
+  accountCache.expiresAt = 0;
+  return response.status(204).end();
+});
+
 app.get('/api/soundscapes/:music/preview', async (request, response) => {
   const music = request.params.music;
   if (!DESIGN_OPTIONS.music.includes(music) || music === 'silent')
@@ -236,7 +266,7 @@ function normalizePostInput(body, existing = null) {
 async function profile() {
   if (accountCache.value && accountCache.expiresAt > Date.now()) return accountCache.value;
   let value = { connected: false, username: brandUsername, accountType: 'BUSINESS' };
-  if (process.env.INSTAGRAM_ACCESS_TOKEN) {
+  if (instagramConfigured()) {
     try {
       const remote = await instagramRequest('me', {
         parameters: { fields: 'user_id,username,account_type' },

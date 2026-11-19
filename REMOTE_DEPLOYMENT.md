@@ -28,3 +28,12 @@ Generate a valid token for the same professional account in Meta, update `INSTAG
 After deployment, check that Settings shows a connected Instagram account. Watch the next scheduled publication for a saved Instagram media ID and a corresponding post on the account. Before retrying a historical failure, check the profile for posts whose confirmation was interrupted. Reschedule selected missed episodes across future slots to avoid a burst.
 
 The queue stores the editorial design and caption. Use `node scripts/redesign-planned.mjs` to preview a one-time conversion of older automatically scheduled material and add `--apply` to save the changes. The script saves the previous rows locally before applying the changes.
+
+Production can also use an encrypted Instagram credential in Supabase Storage.
+Create a private `instagram-publisher-config` bucket and set the token through
+`POST /api/settings/instagram-credential` on the production origin. This endpoint
+requires an admin session and the current admin password. Submit the password and
+token as JSON from a secure client. Production accepts the credential only after
+Meta confirms it matches the configured account. The encrypted credential
+overrides the Vercel environment value. Keep the GitHub Actions secret current
+for the separate manual fallback.
