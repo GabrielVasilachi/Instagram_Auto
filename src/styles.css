@@ -4,8 +4,6 @@
   background: #f7f8fa;
   font-synthesis: none;
   color-scheme: light;
-  --accent: #126655;
-  --accent-soft: #e6f1eb;
   --ink: #20242e;
   --muted: #697386;
   --line: #e7e9ef;
@@ -57,7 +55,7 @@ a {
 button:focus-visible,
 a:focus-visible,
 summary:focus-visible {
-  outline: 3px solid #a7d2bd;
+  outline: 3px solid var(--focus);
   outline-offset: 3px;
 }
 h1,
@@ -127,8 +125,8 @@ button {
   box-shadow: 0 1px 2px #28214e12;
 }
 .primary:hover:not(:disabled) {
-  background: #0d5144;
-  border-color: #0d5144;
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
 }
 .secondary {
   background: #fff;
@@ -148,7 +146,7 @@ button {
   min-height: 32px;
 }
 .text-link:hover {
-  color: #0d5144;
+  color: var(--accent-hover);
 }
 .icon-button {
   width: 34px;
@@ -326,8 +324,8 @@ button {
   border-radius: 50%;
   display: grid;
   place-items: center;
-  background: #e6f1eb;
-  color: #126655;
+  background: var(--accent-soft);
+  color: var(--accent);
   font-size: 10px;
   font-weight: 650;
   flex-shrink: 0;
@@ -489,7 +487,7 @@ summary::-webkit-details-marker {
   margin-bottom: 20px;
   background: #f0efff;
   border: 1px solid #c9e2d1;
-  color: #126655;
+  color: var(--accent);
   border-radius: 8px;
   font-size: 12px;
 }
@@ -633,7 +631,7 @@ summary::-webkit-details-marker {
   place-items: center;
   width: 34px;
   height: 38px;
-  background: #e6f1eb;
+  background: var(--accent-soft);
   color: #57977b;
   border: 1px solid #e7e4f6;
   border-radius: 7px;
@@ -1246,8 +1244,8 @@ tbody tr:hover {
   font-size: 9px;
   font-weight: 500;
   white-space: nowrap;
-  background: #e6f1eb;
-  color: #126655;
+  background: var(--accent-soft);
+  color: var(--accent);
 }
 .status i {
   width: 4px;
@@ -1408,7 +1406,7 @@ tbody tr:hover {
   text-align: left;
 }
 .template-library-card:hover {
-  border-color: #a7d2bd;
+  border-color: var(--focus);
 }
 .template-sample {
   display: flex;
@@ -1470,7 +1468,7 @@ tbody tr:hover {
   width: 64px;
   height: 64px;
   background: #eeecfc;
-  color: #126655;
+  color: var(--accent);
   border-radius: 14px;
   margin-bottom: 20px;
 }
@@ -1546,7 +1544,7 @@ tbody tr:hover {
 }
 .growth-signals strong {
   font-size: 11px;
-  color: #126655;
+  color: var(--accent);
   font-weight: 500;
 }
 .growth-signals small {
@@ -1796,7 +1794,7 @@ tbody tr:hover {
   margin-top: 4px;
   font-size: 8px;
   background: #f1effa;
-  color: #126655;
+  color: var(--accent);
   text-align: left;
 }
 .calendar-event span {
@@ -2679,7 +2677,7 @@ tbody tr:hover {
   color: #697386;
 }
 .login-pitch em {
-  color: #126655;
+  color: var(--accent);
 }
 
 .preview-draft {
