@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import express from 'express';
 import cron from 'node-cron';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { mkdir, readFile, unlink } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -60,7 +60,7 @@ import { scheduledSlots } from './time.mjs';
 import { editorRouter } from './video-editor/routes.mjs';
 import { REEL_VERSION, planReel, chooseQuote } from './reel-plan.mjs';
 import { eligibleForRefresh, refreshScheduledReel } from './refresh-reels.mjs';
-import { loadRefreshSnapshot, replaceRefreshedMedia } from './database.mjs';
+import { cacheReelPreview, loadRefreshSnapshot, replaceRefreshedMedia } from './database.mjs';
 import { isEditorMediaUrl } from './video-editor/assets.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -400,39 +400,60 @@ app.post('/api/posts/:id/duplicate', async (request, response) => {
   response.status(201).json(duplicate);
 });
 
-app.post('/api/posts/:id/preview', async (request, response) => {
-  const post = await loadPost(request.params.id);
-  if (!post) return response.status(404).json({ error: 'Postarea nu există.' });
+const previewRenders = new Map();
 
+async function renderReelPreview(snapshot) {
+  const { post } = snapshot;
+  const key = createHash('sha256')
+    .update(JSON.stringify([REEL_VERSION, post.id, post.quote, post.accent, post.design]))
+    .digest('hex').slice(0, 16);
+  const uploadPost = { ...post, id: `${post.id}-preview-${key}` };
+  if (!previewRenders.has(key)) {
+    const render = (async () => {
+      const filePath = await generateMedia(
+        { ...uploadPost, id: `${uploadPost.id}-${randomUUID()}` }, mediaDirectory,
+      );
+      try {
+        const mediaUrl = await uploadToCloudinary(filePath, uploadPost);
+        if (['scheduled', 'failed'].includes(post.status)) {
+          // Only the original version can acquire the cached URL. Never overwrite an edit or claim.
+          await cacheReelPreview(snapshot, mediaUrl, REEL_VERSION).catch((error) =>
+            console.warn('[preview-cache]', error.message),
+          );
+        }
+        return mediaUrl;
+      } finally {
+        await unlink(filePath).catch(() => {});
+      }
+    })().finally(() => previewRenders.delete(key));
+    previewRenders.set(key, render);
+  }
+  return previewRenders.get(key);
+}
+
+app.post('/api/posts/:id/preview', async (request, response) => {
+  const snapshot = await loadRefreshSnapshot(request.params.id);
+  if (!snapshot) return response.status(404).json({ error: 'Postarea nu există.' });
+  const { post } = snapshot;
   if (post.design?.editorMedia) {
     if (!isEditorMediaUrl(post.design.editorMedia.url))
       return response.status(400).json({ error: 'Fișierul Video Editor nu mai este disponibil.' });
     return response.json({ ...post, mediaUrl: post.design.editorMedia.url });
   }
-
-  // Browsers request MP4 files in ranges. Generating a new temporary file for
-  // every range request is both slow and unreliable on a serverless function.
-  // Render the Reel while the UI shows its loading state, upload it once, then
-  // let Cloudinary serve the seekable video from its CDN.
-  if (post.format === 'reel' && !isRemoteMediaUrl(post.mediaUrl) && cloudinaryConfigured()) {
-    await mkdir(mediaDirectory, { recursive: true });
-    const previewPost = { ...post, id: `${post.id}-preview` };
-    const filePath = await generateMedia(previewPost, mediaDirectory);
-    try {
-      const mediaUrl = await uploadToCloudinary(filePath, previewPost);
-      const updated = await savePost({ ...post, mediaUrl });
-      return response.json(updated);
-    } finally {
-      await unlink(filePath).catch(() => {});
+  let mediaUrl = post.mediaUrl;
+  if (!isRemoteMediaUrl(mediaUrl)) {
+    if (post.format === 'reel' && cloudinaryConfigured()) {
+      try {
+        mediaUrl = await renderReelPreview(snapshot);
+      } catch (error) {
+        console.error('[preview-render]', error.message);
+        return response.status(502).json({ error: 'Randarea video sau încărcarea fișierului a eșuat.' });
+      }
+    } else {
+      mediaUrl = `/api/posts/${post.id}/media?v=${Date.now()}`;
     }
   }
-
-  response.json({
-    ...post,
-    mediaUrl: isRemoteMediaUrl(post.mediaUrl)
-      ? post.mediaUrl
-      : `/api/posts/${post.id}/media?v=${Date.now()}`,
-  });
+  response.json({ ...post, mediaUrl });
 });
 
 app.get('/api/posts/:id/media', async (request, response) => {

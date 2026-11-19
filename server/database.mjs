@@ -337,6 +337,23 @@ export async function loadRefreshSnapshot(id) {
   return raw ? { raw, post: postFromDatabase(raw) } : null;
 }
 
+export async function cacheReelPreview(snapshot, mediaUrl, reelVersion) {
+  const old = snapshot.raw;
+  const query = supabase.from('posts')
+    .update({ media_url: mediaUrl, design: { ...old.design, reelVersion } })
+    .eq('id', old.id)
+    .eq('status', old.status)
+    .eq('format', 'reel')
+    .eq('quote', old.quote)
+    .eq('accent', old.accent)
+    .eq('design', JSON.stringify(old.design));
+  return databaseRequest('cache-reel-preview', () =>
+    (old.media_url === null ? query.is('media_url', null) : query.eq('media_url', old.media_url))
+      .select('id')
+      .maybeSingle(),
+  );
+}
+
 export async function replaceRefreshedMedia(snapshot, updated) {
   const old = snapshot.raw;
   let query = supabase

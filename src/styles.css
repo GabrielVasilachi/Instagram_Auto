@@ -1923,29 +1923,6 @@ tbody tr:hover {
   color: #555f72;
   text-transform: capitalize;
 }
-.preview-loading {
-  grid-column: 1 / -1;
-  display: grid;
-  place-items: center;
-  gap: 12px;
-  padding: 45px;
-  min-height: 450px;
-}
-.preview-loading strong {
-  font-size: 13px;
-  font-weight: 500;
-}
-.preview-loading small {
-  font-size: 11px;
-  color: #969dac;
-}
-.media-skeleton {
-  width: 170px;
-  height: 260px;
-  border-radius: 10px;
-  background: #f0f1f6;
-  animation: skeleton 1.4s ease-in-out infinite;
-}
 .edit-modal {
   padding: 34px;
   width: min(700px, 100%);
@@ -2629,7 +2606,6 @@ tbody tr:hover {
 .empty,
 .properties-list dt,
 .preview-copy > p:last-child,
-.preview-loading small,
 .agenda-item time,
 .calendar-agenda h3,
 .login-pitch .eyebrow,
@@ -2648,4 +2624,21 @@ tbody tr:hover {
 }
 .login-pitch em {
   color: #126655;
+}
+
+.preview-draft {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  width: 100%;
+  text-align: center;
+}
+
+.preview-draft .post-preview {
+  width: min(260px, 100%);
+  min-height: 0;
+}
+
+.preview-draft > p {
+  font-size: 13px;
 }

@@ -320,10 +320,11 @@ export async function generateMedia(post, mediaDirectory) {
     const args = ['-y', '-threads', '2', '-filter_complex_threads', '1'];
     if (!assets.video || design.template === 'obsidian')
       await generateImage(post, backgroundPath, 'background');
+    const repeatFrame = 'loop=loop=-1:size=1:start=0,setpts=N/(30*TB)';
     args.push(
       ...(assets.video && design.template !== 'obsidian'
         ? ['-stream_loop', '-1', '-i', assets.video]
-        : ['-loop', '1', '-framerate', '30', '-i', backgroundPath]),
+        : ['-framerate', '30', '-i', backgroundPath]),
     );
     const filters = [];
     let inputOffset = 0;
@@ -333,7 +334,7 @@ export async function generateMedia(post, mediaDirectory) {
       );
     } else
       filters.push(
-        `[0:v]${backgroundFilter(design.animation, 1080, 1920, duration)},setsar=1,format=yuv420p[bg]`,
+        `[0:v]format=yuv420p,${repeatFrame},${backgroundFilter(design.animation, 1080, 1920, duration)},setsar=1,format=yuv420p[bg]`,
       );
     let previous = 'bg';
     if (assets.video && design.template !== 'obsidian') {
@@ -343,8 +344,8 @@ export async function generateMedia(post, mediaDirectory) {
         .toString()
         .replace(themeSvg(design.template, 1080, 1920), '');
       await sharp(Buffer.from(branding)).png().toFile(brandPath);
-      args.push('-loop', '1', '-framerate', '30', '-i', brandPath);
-      filters.push('[bg][1:v]overlay=0:0[branded]');
+      args.push('-framerate', '30', '-i', brandPath);
+      filters.push(`[1:v]format=yuva420p,${repeatFrame}[brand]`, '[bg][brand]overlay=0:0[branded]');
       inputOffset = 1;
       previous = 'branded';
     }
@@ -356,12 +357,12 @@ export async function generateMedia(post, mediaDirectory) {
         { ...post, quote: scene.text, sceneRole: scene.role }, 1080, 1920, design, true,
       );
       await writeFile(file, buffer);
-      args.push('-threads', '1', '-loop', '1', '-framerate', '30', '-i', file);
+      args.push('-threads', '1', '-framerate', '30', '-i', file);
       const fadeIn = scene.enter ? `,fade=t=in:st=${scene.start}:d=${scene.enter}:alpha=1` : '';
       const progress = `min(1,max(0,(t-${scene.start})/${scene.enter || 1}))`;
       const motion = scene.enter ? `+12*pow(1-${progress},3)` : '';
       filters.push(
-        `[${i + 1 + inputOffset}:v]format=rgba${fadeIn},fade=t=out:st=${scene.end - scene.exit}:d=${scene.exit}:alpha=1[text${i}]`,
+        `[${i + 1 + inputOffset}:v]format=yuva420p,${repeatFrame}${fadeIn},fade=t=out:st=${scene.end - scene.exit}:d=${scene.exit}:alpha=1[text${i}]`,
       );
       filters.push(
         `[${previous}][text${i}]overlay=x=0:y='${top}${motion}':enable='between(t,${scene.start},${scene.end})'[stage${i}]`,
@@ -394,7 +395,7 @@ export async function generateMedia(post, mediaDirectory) {
       '-threads',
       '2',
       '-preset',
-      'fast',
+      'veryfast',
       '-crf',
       '21',
       '-maxrate',

@@ -685,7 +685,9 @@ function DesignControls({
     </div>
   );
 }
-function VisualPreview({ draft, branding }: { draft: Draft; branding: Dashboard['branding'] }) {
+function VisualPreview({
+  draft, branding, showNote = true,
+}: { draft: Draft; branding: Dashboard['branding']; showNote?: boolean }) {
   const [clock, setClock] = useState(0);
   let plan: ReturnType<typeof planReel> | null = null,
     error = '';
@@ -737,7 +739,7 @@ function VisualPreview({ draft, branding }: { draft: Draft; branding: Dashboard[
         </div>
         <small>{draft.format === 'post' && draft.design.growth?.series ? draft.design.growth.cta : `@${branding.username}`}</small>
       </div>
-      {plan && (
+      {plan && showNote && (
         <p className="settings-note">
           {plan.mood} · {plan.scenes.length} scene · {plan.duration}s · Preview de timing. Randarea
           exactă și sunetul sunt disponibile din Content.
@@ -757,6 +759,9 @@ function DashboardApp({ onLogout }: { onLogout: () => void }) {
   const [notice, setNotice] = useState('');
   const [previewPost, setPreviewPost] = useState<Post | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewMedia, setPreviewMedia] = useState<string>();
+  const [previewError, setPreviewError] = useState('');
+  const previewRequest = useRef<AbortController | null>(null);
   const [editing, setEditing] = useState<Post | null>(null);
   const [editDraft, setEditDraft] = useState<Draft | null>(null);
   const [filter, setFilter] = useQueryPreference('status', 'all');
@@ -899,17 +904,38 @@ function DashboardApp({ onLogout }: { onLogout: () => void }) {
     setNotice('Conținutul a fost șters.');
     await refresh();
   }
-  async function openPreview(id: string) {
-    setPreviewLoading(true);
+  function closePreview() {
+    const request = previewRequest.current;
+    previewRequest.current = null;
+    request?.abort();
     setPreviewPost(null);
+  }
+
+  async function openPreview(id: string) {
+    const post = data.posts.find((item) => item.id === id);
+    if (!post) return;
+    previewRequest.current?.abort();
+    const request = new AbortController();
+    previewRequest.current = request;
+    setPreviewPost(post);
+    setPreviewMedia(undefined);
+    setPreviewError('');
+    setPreviewLoading(true);
     try {
-      setPreviewPost(
-        await responseJson(await fetch(`/api/posts/${id}/preview`, { method: 'POST' })),
-      );
+      const result = await responseJson(await fetch(`/api/posts/${id}/preview`, {
+        method: 'POST',
+        signal: AbortSignal.any([request.signal, AbortSignal.timeout(175_000)]),
+      }));
+      if (!result.mediaUrl) throw new Error('Fișierul de previzualizare lipsește.');
+      if (previewRequest.current === request) setPreviewMedia(result.mediaUrl);
     } catch (reason) {
-      setNotice(reason instanceof Error ? reason.message : 'Preview indisponibil.');
+      if (previewRequest.current === request) {
+        setPreviewError(reason instanceof Error && reason.name !== 'TimeoutError'
+          ? reason.message
+          : 'Randarea a durat prea mult.');
+      }
     } finally {
-      setPreviewLoading(false);
+      if (previewRequest.current === request) setPreviewLoading(false);
     }
   }
   function openEditor(post: Post) {
@@ -1438,12 +1464,20 @@ function DashboardApp({ onLogout }: { onLogout: () => void }) {
           )}
         </main>
       </div>
-      {(previewLoading || previewPost) && (
+      {previewPost && (
         <PreviewModal
+          key={previewPost.id}
           loading={previewLoading}
           post={previewPost}
-          onClose={() => !previewLoading && setPreviewPost(null)}
-          onError={() => setNotice('Videoclipul nu a putut fi încărcat.')}
+          mediaUrl={previewMedia}
+          branding={data.branding}
+          error={previewError}
+          onClose={closePreview}
+          onRetry={() => openPreview(previewPost.id)}
+          onError={() => {
+            setPreviewMedia(undefined);
+            setPreviewError('Fișierul randat nu a putut fi încărcat.');
+          }}
         />
       )}
       {editing && editDraft && (
@@ -2603,14 +2637,15 @@ function useModalDialog(onClose: () => void) {
   return dialog;
 }
 function PreviewModal({
-  loading,
-  post,
-  onClose,
-  onError,
+  loading, post, mediaUrl, branding, error, onClose, onRetry, onError,
 }: {
   loading: boolean;
-  post: Post | null;
+  post: Post;
+  mediaUrl?: string;
+  branding: Dashboard['branding'];
+  error: string;
   onClose: () => void;
+  onRetry: () => void;
   onError: () => void;
 }) {
   const dialog = useModalDialog(onClose);
@@ -2631,59 +2666,49 @@ function PreviewModal({
         >
           <Icon name="close" />
         </button>
-        {loading ? (
-          <div className="preview-loading">
-            <div className="media-skeleton" />
-            <strong>Se generează randarea exactă</strong>
-            <small>Primul preview poate dura aproximativ 30 de secunde.</small>
-          </div>
-        ) : (
-          post && (
-            <>
-              <div className="media-frame">
-                {post.format === 'reel' ? (
-                  <video
-                    src={post.mediaUrl}
-                    controls
-                    autoPlay
-                    muted
-                    loop
-                    playsInline
-                    preload="auto"
-                    onError={onError}
-                  />
-                ) : (
-                  <img src={post.mediaUrl} alt={post.quote} />
-                )}
-              </div>
-              <div className="preview-copy">
-                <p className="eyebrow">DETALII CONȚINUT</p>
-                <StatusBadge status={post.status} />
-                <dl className="properties-list">
-                  <div>
-                    <dt>Programare</dt>
-                    <dd>{formatDate(post.scheduledFor)}</dd>
-                  </div>
-                  <div>
-                    <dt>Template</dt>
-                    <dd>{post.design.template}</dd>
-                  </div>
-                  <div>
-                    <dt>Muzică</dt>
-                    <dd>{post.design.music}</dd>
-                  </div>
-                </dl>
-                <span className="badge">
-                  {post.format === 'reel'
-                    ? `${post.design.animation} · ${post.design.duration}s · ${post.design.music}`
-                    : `Post · ${post.design.template}`}
-                </span>
-                <h2>{post.quote}</h2>
-                <p>{post.caption}</p>
-              </div>
-            </>
-          )
-        )}
+        <div className="media-frame">
+          {!mediaUrl ? (
+            <div className="preview-draft">
+              {!post.design.editorMedia && <VisualPreview draft={post} branding={branding} showNote={false} />}
+              {loading && <p role="status">Se pregătește fișierul randat…</p>}
+              {error && (
+                <>
+                  <p role="alert">{error}</p>
+                  <button className="secondary" onClick={onRetry}>Reîncearcă</button>
+                </>
+              )}
+            </div>
+          ) : post.format === 'reel' ? (
+            <video src={mediaUrl} controls autoPlay muted loop playsInline preload="auto" onError={onError} />
+          ) : (
+            <img src={mediaUrl} alt={post.quote} onError={onError} />
+          )}
+        </div>
+        <div className="preview-copy">
+          <p className="eyebrow">DETALII CONȚINUT</p>
+          <StatusBadge status={post.status} />
+          <dl className="properties-list">
+            <div>
+              <dt>Programare</dt>
+              <dd>{formatDate(post.scheduledFor)}</dd>
+            </div>
+            <div>
+              <dt>Template</dt>
+              <dd>{post.design.template}</dd>
+            </div>
+            <div>
+              <dt>Muzică</dt>
+              <dd>{post.design.music}</dd>
+            </div>
+          </dl>
+          <span className="badge">
+            {post.format === 'reel'
+              ? `${post.design.animation} · ${post.design.duration}s · ${post.design.music}`
+              : `Post · ${post.design.template}`}
+          </span>
+          <h2>{post.quote}</h2>
+          <p>{post.caption}</p>
+        </div>
       </section>
     </div>
   );
