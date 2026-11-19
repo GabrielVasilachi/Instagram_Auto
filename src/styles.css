@@ -1036,9 +1036,68 @@ input[type='checkbox'] {
   color: var(--accent);
   border-bottom-color: var(--accent);
 }
+.planner-statuses {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.planner-statuses button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.planner-statuses button:hover,
+.planner-statuses button[aria-pressed='true'],
+.planner-options-button.active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.planner-status-count {
+  min-width: 23px;
+  padding: 2px 5px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--surface);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.planner-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 12px;
+  margin-top: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-soft);
+}
+
+.planner-options[hidden] {
+  display: none;
+}
+
+.planner-options .filter-control > span {
+  color: var(--muted);
+  font-size: 11px;
+}
+
 .content-toolbar {
   display: flex;
-  align-items: end;
+  align-items: center;
   gap: 12px;
   flex-wrap: wrap;
 }
@@ -2251,9 +2310,6 @@ tbody tr:hover {
   .filter-control {
     min-width: 100px;
     flex: 1;
-  }
-  .sort-control {
-    max-width: 150px;
   }
   .template-library {
     grid-template-columns: 1fr 1fr;
